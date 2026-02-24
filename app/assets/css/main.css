@@ -451,11 +451,31 @@ a.btn {
   text-align: center;
 }
 
+/* Decorative retro divider */
+.recent-feeds,
+.site-footer {
+  position: relative;
+  border-top: 1px solid #d4c5a9;
+}
+
+.recent-feeds::before,
+.site-footer::before {
+  content: '◆';
+  position: absolute;
+  top: -0.55em;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #faf3e0;
+  padding: 0 0.75em;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #8c7a6b;
+}
+
 /* Recent feeds */
 .recent-feeds {
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 1px solid #d4c5a9;
 }
 
 .recent-feeds-list {
@@ -496,7 +516,6 @@ a.btn {
 .site-footer {
   margin-top: 3rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #d4c5a9;
   text-align: center;
   font-size: 0.8rem;
   color: #8c7a6b;
