@@ -59,7 +59,6 @@ export interface FeedRecord {
   url: string;
   title: string | null;
   parser_config: string;
-  needs_js: number;
   created_at: string;
   updated_at: string;
 }

@@ -40,8 +40,8 @@ Bun.serve({
             );
           }
 
-          // 1. Fetch the page (with Playwright fallback for JS-rendered sites)
-          const { html, needsJs } = await fetchPage(body.url);
+          // 1. Fetch the page
+          const html = await fetchPage(body.url);
 
           // 2. Trim HTML for AI
           const trimmed = trimHtml(html);
@@ -63,13 +63,7 @@ Bun.serve({
 
           // 5. Save to database
           const feedId = nanoid(12);
-          saveFeed(
-            feedId,
-            body.url,
-            preview.title,
-            JSON.stringify(config),
-            needsJs
-          );
+          saveFeed(feedId, body.url, preview.title, JSON.stringify(config));
 
           // 6. Return preview
           const feedUrl = `/feed/${feedId}.xml`;
@@ -127,10 +121,7 @@ Bun.serve({
 
         // Fetch, parse, generate
         try {
-          const { html } = await fetchPage(
-            feed.url,
-            feed.needs_js === 1
-          );
+          const html = await fetchPage(feed.url);
           const config: ParserConfig = JSON.parse(feed.parser_config);
           const extracted = parseHtml(html, config, feed.url);
 
