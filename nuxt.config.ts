@@ -26,7 +26,7 @@ export default defineNuxtConfig({
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.bunny.net' },
-        { rel: 'stylesheet', href: 'https://fonts.bunny.net/css?family=bungee:400&display=swap' },
+        { rel: 'stylesheet', href: 'https://fonts.bunny.net/css?family=dela-gothic-one:400&display=swap' },
       ],
     },
   },
