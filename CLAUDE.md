@@ -1,5 +1,8 @@
 This is a Nuxt 4 + NuxtHub app deployed to Cloudflare Workers.
 
+We're going for a fun, mid-century, retro-appliance, industrial futurism kind of vibe and aesthetic. Think 1950s Sears catalog and pulp comic books.
+Keep this in mind for UI designs and user-facing language.
+
 ## Commands
 
 - `pnpm install` to install dependencies
