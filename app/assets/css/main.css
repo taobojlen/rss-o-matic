@@ -123,27 +123,96 @@ body {
 }
 
 /* Loading */
-.loading {
-  text-align: center;
-  padding: 3rem 0;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.spinner {
+/* Progress Panel */
+.progress-panel {
+  text-align: center;
+  padding: 2.5rem 0;
+}
+
+.progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 320px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+}
+
+.progress-step.active,
+.progress-step.completed {
+  opacity: 1;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.step-spinner {
   display: inline-block;
-  width: 36px;
-  height: 36px;
-  border: 3px solid #d4c5a9;
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid #d4c5a9;
   border-top-color: #ff6b35;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.step-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #4a7c3f;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
-.loading p {
-  margin-top: 1rem;
+.step-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #d4c5a9;
+  border-radius: 50%;
+}
+
+.step-label {
+  font-size: 0.95rem;
+  color: #3d2c1e;
+  font-weight: 600;
+}
+
+.progress-step.pending .step-label {
+  color: #8c7a6b;
+  font-weight: 400;
+}
+
+.progress-step.completed .step-label {
+  color: #4a7c3f;
+}
+
+.progress-hint {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
   color: #8c7a6b;
 }
 
