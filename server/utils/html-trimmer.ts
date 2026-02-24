@@ -51,6 +51,7 @@ export function trimHtml(rawHtml: string): string {
         elem.removeAttr(key);
       }
     }
+
   });
 
   // Truncate long text nodes
