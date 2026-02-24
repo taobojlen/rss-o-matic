@@ -263,5 +263,9 @@ function handleReset() {
         </li>
       </ul>
     </section>
+
+    <footer class="site-footer">
+      <p>Made by <a href="https://btao.org/" target="_blank">Tao</a></p>
+    </footer>
   </div>
 </template>
