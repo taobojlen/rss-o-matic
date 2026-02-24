@@ -15,6 +15,7 @@ const mockCreateError = vi.fn((opts: any) => {
   err.statusCode = opts.statusCode;
   return err;
 });
+const mockCapturePostHogEvent = vi.fn();
 const mockReadBody = vi.fn();
 const mockUseRuntimeConfig = vi.fn(() => ({
   openrouterApiKey: "test-key",
@@ -30,6 +31,7 @@ vi.stubGlobal("saveFeed", mockSaveFeed);
 vi.stubGlobal("getCachedPreview", mockGetCachedPreview);
 vi.stubGlobal("setCachedPreview", mockSetCachedPreview);
 vi.stubGlobal("normalizeUrl", mockNormalizeUrl);
+vi.stubGlobal("capturePostHogEvent", mockCapturePostHogEvent);
 vi.stubGlobal("createError", mockCreateError);
 vi.stubGlobal("readBody", mockReadBody);
 vi.stubGlobal("useRuntimeConfig", mockUseRuntimeConfig);
@@ -166,5 +168,105 @@ describe("POST /api/generate", () => {
     expect(mockGenerateParserConfig).toHaveBeenCalled();
     expect(mockSaveFeed).toHaveBeenCalled();
     expect(result.feedId).toBe("testid123456");
+  });
+
+  describe("posthog tracking", () => {
+    it("tracks 'existing' outcome when feed already exists", async () => {
+      const existingFeed = {
+        id: "existingId123",
+        url: "https://example.com/blog",
+        title: "Example Blog",
+        parser_config: JSON.stringify({ itemSelector: ".post" }),
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+      };
+
+      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+      mockGetFeedByUrl.mockResolvedValue(existingFeed);
+      mockGetCachedPreview.mockResolvedValue({
+        title: "Blog",
+        description: "",
+        link: "https://example.com/blog",
+        items: [{ title: "Post 1", link: "/post-1" }],
+      });
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await handler({} as any);
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "existing", url: "https://example.com/blog" }
+      );
+    });
+
+    it("tracks 'created' outcome when a new feed is generated", async () => {
+      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+      mockGetFeedByUrl.mockResolvedValue(null);
+      mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
+      mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
+      mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+      mockParseHtml.mockReturnValue({
+        title: "Blog",
+        description: "",
+        link: "https://example.com/blog",
+        items: [{ title: "Hello", link: "/hello" }],
+      });
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await handler({} as any);
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "created", url: "https://example.com/blog" }
+      );
+    });
+
+    it("tracks 'error' outcome when generation fails", async () => {
+      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+      mockGetFeedByUrl.mockResolvedValue(null);
+      mockFetchPage.mockRejectedValue(new Error("Network error"));
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await expect(handler({} as any)).rejects.toThrow();
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "error", url: "https://example.com/blog" }
+      );
+    });
+
+    it("tracks 'error' outcome when parser finds no items", async () => {
+      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+      mockGetFeedByUrl.mockResolvedValue(null);
+      mockFetchPage.mockResolvedValue("<html></html>");
+      mockTrimHtml.mockReturnValue("<html></html>");
+      mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+      mockParseHtml.mockReturnValue({
+        title: "Blog",
+        description: "",
+        link: "https://example.com/blog",
+        items: [],
+      });
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await expect(handler({} as any)).rejects.toThrow();
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "error", url: "https://example.com/blog" }
+      );
+    });
   });
 });
