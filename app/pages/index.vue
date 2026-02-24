@@ -263,5 +263,9 @@ function handleReset() {
         </li>
       </ul>
     </section>
+
+    <footer class="site-footer">
+      <p>Made by <a href="https://btao.org/" target="_blank">Tao</a> | Contribute on <a href="https://github.com/taobojlen/rss-o-matic" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+    </footer>
   </div>
 </template>

@@ -1,23 +1,21 @@
-export default defineNitroPlugin((nitroApp) => {
-  nitroApp.hooks.hook('error', (error, { event }) => {
-    const client = usePostHogClient()
+import { captureServerException } from "../utils/posthog";
 
-    const props: Record<string, unknown> = {
-      $process_person_profile: false,
-    }
+export default defineNitroPlugin((nitroApp) => {
+  nitroApp.hooks.hook("error", (error, { event }) => {
+    const props: Record<string, unknown> = {};
     if (event?.path) {
-      props.path = event.path
-      props.$current_url = event.path
+      props.path = event.path;
+      props.$current_url = event.path;
     }
     if (event?.method) {
-      props.method = event.method
+      props.method = event.method;
     }
 
-    client.captureException(error, crypto.randomUUID(), props)
+    const done = captureServerException(error, props);
 
-    const ctx = event?.context?.cloudflare?.context
+    const ctx = event?.context?.cloudflare?.context;
     if (ctx?.waitUntil) {
-      ctx.waitUntil(client.flushAsync())
+      ctx.waitUntil(done);
     }
-  })
-})
+  });
+});

@@ -17,12 +17,24 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
   try {
-    // 0. Check if a feed already exists for this URL
+    // 0. Check if a feed already exists for this URL — return cached preview if available
     const existing = await getFeedByUrl(normalized);
     if (existing) {
       const parserConfig = JSON.parse(existing.parser_config);
+      const cachedPreview = await getCachedPreview(existing.id);
+      capturePostHogEvent(event, "feed_generated", { outcome: "existing", url: normalized });
+      if (cachedPreview) {
+        return {
+          feedId: existing.id,
+          feedUrl: `/feed/${existing.id}.xml`,
+          preview: cachedPreview,
+          parserConfig,
+        };
+      }
+      // Cache miss — fetch the page and parse with existing config
       const html = await fetchPage(normalized);
       const preview = parseHtml(html, parserConfig, normalized);
+      await setCachedPreview(existing.id, preview);
       return {
         feedId: existing.id,
         feedUrl: `/feed/${existing.id}.xml`,
@@ -55,7 +67,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // 5. Save to database
+    // 5. Save to database and cache preview
     const feedId = nanoid(12);
     await saveFeed(
       feedId,
@@ -63,9 +75,11 @@ export default defineEventHandler(async (event) => {
       preview.title,
       JSON.stringify(parserConfig)
     );
+    await setCachedPreview(feedId, preview);
 
     // 6. Return preview
     const feedUrl = `/feed/${feedId}.xml`;
+    capturePostHogEvent(event, "feed_generated", { outcome: "created", url: normalized });
     return {
       feedId,
       feedUrl,
@@ -73,6 +87,7 @@ export default defineEventHandler(async (event) => {
       parserConfig,
     };
   } catch (err: unknown) {
+    capturePostHogEvent(event, "feed_generated", { outcome: "error", url: normalized });
     // Re-throw if already an H3Error
     if (err && typeof err === "object" && "statusCode" in err) {
       throw err;
