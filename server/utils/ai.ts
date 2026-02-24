@@ -3,36 +3,60 @@ import { validateParserConfig } from "./validate";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
+const FIELD_SELECTOR_SCHEMA = {
+  type: "object",
+  properties: {
+    selector: { type: "string" },
+    attr: { type: "string" },
+    html: { type: "boolean" },
+  },
+  required: ["selector"],
+  additionalProperties: false,
+};
+
+const FIELD_SELECTOR_OR_STRING_SCHEMA = {
+  oneOf: [{ type: "string" }, FIELD_SELECTOR_SCHEMA],
+};
+
+const PARSER_CONFIG_SCHEMA = {
+  type: "object",
+  properties: {
+    feed: {
+      type: "object",
+      properties: {
+        title: FIELD_SELECTOR_OR_STRING_SCHEMA,
+        description: FIELD_SELECTOR_OR_STRING_SCHEMA,
+        link: FIELD_SELECTOR_OR_STRING_SCHEMA,
+      },
+      required: ["title"],
+      additionalProperties: false,
+    },
+    itemSelector: { type: "string" },
+    fields: {
+      type: "object",
+      properties: {
+        title: FIELD_SELECTOR_SCHEMA,
+        link: FIELD_SELECTOR_SCHEMA,
+        description: FIELD_SELECTOR_SCHEMA,
+        pubDate: FIELD_SELECTOR_SCHEMA,
+        author: FIELD_SELECTOR_SCHEMA,
+        category: FIELD_SELECTOR_SCHEMA,
+        image: FIELD_SELECTOR_SCHEMA,
+      },
+      required: ["title", "link"],
+      additionalProperties: false,
+    },
+  },
+  required: ["feed", "itemSelector", "fields"],
+  additionalProperties: false,
+};
+
 function buildPrompt(trimmedHtml: string, url: string): string {
   return `You are an expert web scraper. Given the HTML of a web page, produce a JSON configuration that describes how to extract an RSS-like feed of items from the page.
 
 The page URL is: ${url}
 
-Analyze the HTML below and identify the repeating pattern of content items (articles, posts, links, products, etc.). Then produce a JSON object matching this exact TypeScript interface:
-
-interface FieldSelector {
-  selector: string;  // CSS selector relative to the item element
-  attr?: string;     // attribute to extract (e.g. "href"); omit for textContent
-  html?: boolean;    // true to extract innerHTML instead of textContent
-}
-
-interface ParserConfig {
-  feed: {
-    title: FieldSelector | string;
-    description?: FieldSelector | string;
-    link?: FieldSelector | string;
-  };
-  itemSelector: string;  // CSS selector matching each repeating item
-  fields: {
-    title: FieldSelector;
-    link: FieldSelector;
-    description?: FieldSelector;
-    pubDate?: FieldSelector;
-    author?: FieldSelector;
-    category?: FieldSelector;
-    image?: FieldSelector;
-  };
-}
+Analyze the HTML below and identify the repeating pattern of content items (articles, posts, links, products, etc.).
 
 Rules:
 1. itemSelector MUST match multiple elements on the page (the repeating items).
@@ -43,7 +67,6 @@ Rules:
 6. If a field is not available on the page, omit it from fields.
 7. Prefer specific selectors (classes, data attributes) over generic tag selectors.
 8. feed.title can be a literal string if there's no good selector.
-9. Return ONLY the JSON object. No markdown fences, no explanation.
 
 HTML:
 ${trimmedHtml}`;
@@ -70,7 +93,14 @@ export async function generateParserConfig(
       messages: [{ role: "user", content: buildPrompt(trimmedHtml, url) }],
       temperature: 0,
       max_tokens: 2000,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "parser_config",
+          strict: true,
+          schema: PARSER_CONFIG_SCHEMA,
+        },
+      },
     }),
   });
 
@@ -83,7 +113,10 @@ export async function generateParserConfig(
     choices?: { message?: { content?: string } }[];
   };
   const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty response from AI");
+  if (!content) {
+    console.error("Empty AI response, full data:", JSON.stringify(data));
+    throw new Error("Empty response from AI");
+  }
 
   let parsed: unknown;
   try {
