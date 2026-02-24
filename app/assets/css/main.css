@@ -437,11 +437,32 @@ a.btn {
   text-align: center;
 }
 
+/* Decorative retro divider */
+.recent-feeds,
+.site-footer {
+  position: relative;
+}
+
+.recent-feeds::before,
+.site-footer::before {
+  content: '◆';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.5rem;
+  line-height: 0;
+  color: #8c7a6b;
+  background:
+    linear-gradient(to right, #d4c5a9, #d4c5a9) left center / calc(50% - 1.2em) 1px no-repeat,
+    linear-gradient(to right, #d4c5a9, #d4c5a9) right center / calc(50% - 1.2em) 1px no-repeat;
+}
+
 /* Recent feeds */
 .recent-feeds {
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 1px solid #d4c5a9;
 }
 
 .recent-feeds-list {
@@ -482,7 +503,6 @@ a.btn {
 .site-footer {
   margin-top: 3rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #d4c5a9;
   text-align: center;
   font-size: 0.8rem;
   color: #8c7a6b;
