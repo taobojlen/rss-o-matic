@@ -232,7 +232,7 @@ function handleReset() {
             <span v-if="progress.completedSteps.value.has('done')" class="step-check">&#10003;</span>
             <span v-else class="step-dot" />
           </span>
-          <span class="step-label">Your feed is piping hot!</span>
+          <span class="step-label">Coming in loud and clear!</span>
         </div>
       </div>
 
