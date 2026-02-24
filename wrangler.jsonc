@@ -10,5 +10,14 @@
   },
   "vars": {
     "NUXT_OPENROUTER_MODEL": "minimax/minimax-m2.5"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB_MIGRATIONS",
+      "database_name": "rss-o-matic",
+      "database_id": "31ed3c46-030e-4448-b4ad-fe38e055cedf",
+      "migrations_table": "_hub_migrations",
+      "migrations_dir": "server/db/migrations"
+    }
+  ]
 }
