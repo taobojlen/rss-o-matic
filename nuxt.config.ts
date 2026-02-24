@@ -24,6 +24,10 @@ export default defineNuxtConfig({
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
       ],
+      link: [
+        { rel: 'preconnect', href: 'https://fonts.bunny.net' },
+        { rel: 'stylesheet', href: 'https://fonts.bunny.net/css?family=bungee:400&display=swap' },
+      ],
     },
   },
   css: ['~/assets/css/main.css'],

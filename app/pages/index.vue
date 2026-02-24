@@ -75,12 +75,16 @@ function handleReset() {
 </script>
 
 <template>
-  <div id="root">
-    <header>
-      <h1>RSS-O-Matic</h1>
-      <p>Generate an RSS feed from any website using AI</p>
-    </header>
+  <header class="retro-header">
+    <div class="retro-header-inner">
+      <h1 class="retro-title">RSS-O-Matic</h1>
+      <p class="retro-tagline">
+        <span class="tagline-burst">Instant Feeds for the Modern Reader</span>
+      </p>
+    </div>
+  </header>
 
+  <div id="root">
     <form
       v-if="step === 'idle' || step === 'loading'"
       class="url-form"
@@ -105,7 +109,7 @@ function handleReset() {
     <div v-if="step === 'loading'" class="loading">
       <div class="spinner" />
       <p>Fetching page and analyzing structure...</p>
-      <p style="font-size: 0.8rem; color: #555; margin-top: 0.5rem">
+      <p style="font-size: 0.8rem; color: #8c7a6b; margin-top: 0.5rem">
         This may take 10-30 seconds
       </p>
     </div>
