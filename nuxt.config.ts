@@ -16,6 +16,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     openrouterApiKey: '',
     openrouterModel: '',
+    public: {
+      posthogPublicKey: 'phc_CkAp2xq3iYAT1KT7v4TVAmDSR6zjQ0JoBnDpCL4AMS9',
+      posthogHost: 'https://eu.i.posthog.com',
+      posthogDefaults: '2026-01-30'
+    }
   },
   app: {
     head: {
