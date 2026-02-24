@@ -1,15 +1,28 @@
-# rss-o-matic
+# RSS-O-Matic
 
-To install dependencies:
+AI-powered RSS feed generator. Paste any website URL and get an RSS feed. Built with [Nuxt](https://nuxt.com) and [NuxtHub](https://hub.nuxt.com) for Cloudflare Workers.
 
-```bash
-bun install
-```
-
-To run:
+## Setup
 
 ```bash
-bun run index.ts
+pnpm install
 ```
 
-This project was created using `bun init` in bun v1.3.6. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Create a `.env` file:
+
+```
+NUXT_OPENROUTER_API_KEY=your-key-here
+NUXT_OPENROUTER_MODEL=anthropic/claude-sonnet-4
+```
+
+## Development
+
+```bash
+pnpm dev
+```
+
+## Deploy
+
+```bash
+pnpm deploy
+```

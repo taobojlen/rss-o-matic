@@ -7,6 +7,7 @@ export function generateRssXml(feed: ExtractedFeed, selfUrl: string): string {
   const items = feed.items.map((item) => buildItem(item)).join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="/pretty-feed-v3.xsl" type="text/xsl"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${esc(feed.title)}</title>

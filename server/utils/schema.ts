@@ -62,19 +62,3 @@ export interface FeedRecord {
   created_at: string;
   updated_at: string;
 }
-
-export interface GenerateRequest {
-  url: string;
-}
-
-export interface GenerateResponse {
-  feedId: string;
-  feedUrl: string;
-  preview: ExtractedFeed;
-  parserConfig: ParserConfig;
-}
-
-export interface ErrorResponse {
-  error: string;
-  details?: string;
-}

@@ -51,12 +51,11 @@ ${trimmedHtml}`;
 
 export async function generateParserConfig(
   trimmedHtml: string,
-  url: string
+  url: string,
+  apiKey: string,
+  model: string
 ): Promise<ParserConfig> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in environment");
-
-  const model = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4";
 
   const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: "POST",
