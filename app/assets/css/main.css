@@ -298,6 +298,110 @@ a.btn {
   display: inline-block;
 }
 
+/* Existing feed found */
+.existing-feed-box {
+  background: #e8f5e0;
+  border: 2px solid #a8d5a0;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.existing-feed-heading {
+  font-size: 1.4rem;
+  color: #4a7c3f;
+  margin-bottom: 0.5rem;
+}
+
+.existing-feed-message {
+  color: #5a6b50;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.existing-feed-list {
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.existing-feed-item {
+  background: #ffffff;
+  border: 1px solid #a8d5a0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+.existing-feed-url-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.feed-type-badge {
+  display: inline-block;
+  background: #4a7c3f;
+  color: #fff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.existing-feed-link {
+  color: #4a7c3f;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.existing-feed-link:hover {
+  text-decoration: underline;
+}
+
+.existing-feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.existing-feed-url {
+  flex: 1;
+  font-size: 0.8rem;
+  color: #6b8a60;
+  word-break: break-all;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* Unsuitable URL */
+.unsuitable-box {
+  background: #fff8e1;
+  border: 2px solid #e0c870;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.unsuitable-heading {
+  font-size: 1.4rem;
+  color: #8a6d00;
+  margin-bottom: 0.75rem;
+}
+
+.unsuitable-hint {
+  color: #8c7a6b;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
 /* Config toggle */
 .config-toggle {
   margin-top: 1.5rem;

@@ -14,12 +14,16 @@ interface Preview {
   items: FeedItem[]
 }
 
-interface GenerateResult {
-  feedId: string
-  feedUrl: string
-  preview: Preview
-  parserConfig: object
+interface DiscoveredFeed {
+  url: string
+  title?: string
+  feedType: 'rss' | 'atom' | 'json'
 }
+
+type GenerateResponse =
+  | { type: 'generated'; feedId: string; feedUrl: string; preview: Preview; parserConfig: object }
+  | { type: 'existing_feed'; existingFeeds: DiscoveredFeed[] }
+  | { type: 'unsuitable'; reason: string }
 
 interface RecentFeed {
   id: string
@@ -29,13 +33,15 @@ interface RecentFeed {
   createdAt: string
 }
 
-type AppStep = 'idle' | 'loading' | 'preview' | 'error'
+type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'error'
 
 const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
 
 const url = ref('')
 const step = ref<AppStep>('idle')
-const data = ref<GenerateResult | null>(null)
+const generatedData = ref<Extract<GenerateResponse, { type: 'generated' }> | null>(null)
+const existingFeeds = ref<DiscoveredFeed[]>([])
+const unsuitableReason = ref('')
 const errorMessage = ref('')
 const errorStatusCode = ref<number | null>(null)
 const copied = ref(false)
@@ -50,21 +56,34 @@ async function handleSubmit() {
   if (!url.value.trim()) return
 
   step.value = 'loading'
-  data.value = null
+  generatedData.value = null
+  existingFeeds.value = []
+  unsuitableReason.value = ''
   errorMessage.value = ''
   progress.start()
 
   try {
-    const res = await $fetch<GenerateResult>('/api/generate', {
+    const res = await $fetch<GenerateResponse>('/api/generate', {
       method: 'POST',
       body: { url: url.value.trim() },
     })
-    progress.finish()
-    data.value = res
-    // Brief pause so the user sees the "done" checkmark
-    await new Promise(resolve => setTimeout(resolve, 600))
-    step.value = 'preview'
-    refreshRecentFeeds()
+
+    if (res.type === 'existing_feed') {
+      progress.reset()
+      existingFeeds.value = res.existingFeeds
+      step.value = 'existing_feed'
+    } else if (res.type === 'unsuitable') {
+      progress.reset()
+      unsuitableReason.value = res.reason
+      step.value = 'unsuitable'
+    } else {
+      progress.finish()
+      generatedData.value = res
+      // Brief pause so the user sees the "done" checkmark
+      await new Promise(resolve => setTimeout(resolve, 600))
+      step.value = 'preview'
+      refreshRecentFeeds()
+    }
   } catch (err: any) {
     progress.reset()
     errorMessage.value =
@@ -75,9 +94,17 @@ async function handleSubmit() {
 }
 
 function handleCopy() {
-  if (!data.value) return
-  const fullUrl = `${origin.value}${data.value.feedUrl}`
+  if (!generatedData.value) return
+  const fullUrl = `${origin.value}${generatedData.value.feedUrl}`
   navigator.clipboard.writeText(fullUrl)
+  copied.value = true
+  setTimeout(() => {
+    copied.value = false
+  }, 2000)
+}
+
+function handleCopyFeedUrl(feedUrl: string) {
+  navigator.clipboard.writeText(feedUrl)
   copied.value = true
   setTimeout(() => {
     copied.value = false
@@ -100,10 +127,25 @@ const githubIssueUrl = computed(() => {
   return `https://github.com/taobojlen/rss-o-matic/issues/new?${params}`
 })
 
+const unsuitableIssueUrl = computed(() => {
+  const title = `URL incorrectly flagged as unsuitable: ${url.value.trim()}`
+  const body = [
+    '**URL:** `' + url.value.trim() + '`',
+    '**Reason given:** ' + unsuitableReason.value,
+    '',
+    '---',
+    '*Please describe what kind of feed you expected from this page.*',
+  ].join('\n')
+  const params = new URLSearchParams({ title, body, labels: 'bug' })
+  return `https://github.com/taobojlen/rss-o-matic/issues/new?${params}`
+})
+
 function handleReset() {
   step.value = 'idle'
   url.value = ''
-  data.value = null
+  generatedData.value = null
+  existingFeeds.value = []
+  unsuitableReason.value = ''
   errorMessage.value = ''
   errorStatusCode.value = null
   copied.value = false
@@ -195,19 +237,63 @@ function handleReset() {
       <p class="progress-hint">Hang tight &mdash; good feeds take a moment</p>
     </div>
 
-    <div v-if="step === 'preview' && data">
+    <div v-if="step === 'existing_feed'" class="existing-feed-box">
+      <h2 class="existing-feed-heading">Good news, partner!</h2>
+      <p class="existing-feed-message">
+        This site already broadcasts {{ existingFeeds.length === 1 ? 'a feed' : 'feeds' }} loud and clear. No need for our machines!
+      </p>
+      <ul class="existing-feed-list">
+        <li v-for="(feed, i) in existingFeeds" :key="i" class="existing-feed-item">
+          <div class="existing-feed-url-row">
+            <span class="feed-type-badge">{{ feed.feedType.toUpperCase() }}</span>
+            <a :href="feed.url" target="_blank" rel="noopener noreferrer" class="existing-feed-link">
+              {{ feed.title || feed.url }}
+            </a>
+          </div>
+          <div class="existing-feed-actions">
+            <code class="existing-feed-url">{{ feed.url }}</code>
+            <button class="btn btn-secondary btn-sm" @click="handleCopyFeedUrl(feed.url)">
+              {{ copied ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </li>
+      </ul>
+      <div class="actions">
+        <button class="btn btn-secondary" @click="handleReset">
+          Try Another URL
+        </button>
+      </div>
+    </div>
+
+    <div v-if="step === 'unsuitable'" class="unsuitable-box">
+      <h2 class="unsuitable-heading">Our robots refused!</h2>
+      <p class="unsuitable-hint">
+        RSS-O-Matic works best on pages with a list of posts, articles, or updates.
+        Try submitting the blog index or news listing page instead.
+      </p>
+      <div class="error-actions">
+        <button class="btn btn-primary" @click="handleReset">
+          Try Another URL
+        </button>
+        <a :href="unsuitableIssueUrl" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          Report a Problem
+        </a>
+      </div>
+    </div>
+
+    <div v-if="step === 'preview' && generatedData">
       <div class="feed-url-box">
-        <code>{{ origin }}{{ data.feedUrl }}</code>
+        <code>{{ origin }}{{ generatedData.feedUrl }}</code>
         <button class="btn btn-secondary" @click="handleCopy">
           {{ copied ? 'Copied!' : 'Copy' }}
         </button>
       </div>
 
       <p class="section-label">
-        Preview ({{ data.preview.items.length }} items from "{{ data.preview.title }}")
+        Preview ({{ generatedData.preview.items.length }} items from "{{ generatedData.preview.title }}")
       </p>
       <ul class="items-list">
-        <li v-for="(item, i) in data.preview.items.slice(0, 10)" :key="i">
+        <li v-for="(item, i) in generatedData.preview.items.slice(0, 10)" :key="i">
           <h3>
             <a :href="item.link" target="_blank" rel="noopener noreferrer">
               {{ item.title }}
@@ -230,7 +316,7 @@ function handleReset() {
 
       <details class="config-toggle">
         <summary>View parser config (JSON)</summary>
-        <pre>{{ JSON.stringify(data.parserConfig, null, 2) }}</pre>
+        <pre>{{ JSON.stringify(generatedData.parserConfig, null, 2) }}</pre>
       </details>
 
       <div class="actions">

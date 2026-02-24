@@ -60,7 +60,10 @@ export function validateParserConfig(obj: unknown): ParserConfig {
     }
   }
 
-  return config as unknown as ParserConfig;
+  // Strip AI-level suitability fields that aren't part of ParserConfig
+  const { unsuitable, unsuitableReason, ...parserConfig } = config;
+
+  return parserConfig as unknown as ParserConfig;
 }
 
 function validateFieldSelector(val: unknown, path: string): void {
