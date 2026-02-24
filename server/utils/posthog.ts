@@ -1,6 +1,29 @@
 import { PostHog } from "posthog-node";
 import type { H3Event } from "h3";
 
+let _client: PostHog | null = null;
+
+/**
+ * Get or create a shared PostHog client singleton.
+ * Used by @posthog/ai OpenAI wrapper for LLM analytics.
+ */
+export function usePostHogClient(): PostHog {
+  if (!_client) {
+    const config = useRuntimeConfig();
+    const { publicKey, host } = config.public.posthog as {
+      publicKey: string;
+      host: string;
+    };
+    _client = new PostHog(publicKey, {
+      host,
+      // Cloudflare Workers: flush immediately since there's no long-running process
+      flushInterval: 0,
+      flushAt: 1,
+    });
+  }
+  return _client;
+}
+
 /**
  * Capture an exception to PostHog from server-side code.
  * Creates a throwaway client, sends the event, and flushes.

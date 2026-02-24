@@ -1,8 +1,9 @@
+import { OpenAI } from "@posthog/ai/openai";
 import { consola } from "consola";
 import type { ParserConfig } from "./schema";
 import { validateParserConfig } from "./validate";
+import { usePostHogClient } from "./posthog";
 
-const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 const logger = consola.withTag("ai");
 
 const FIELD_SELECTOR_SCHEMA = {
@@ -86,6 +87,16 @@ export async function generateParserConfig(
 ): Promise<ParserConfig> {
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in environment");
 
+  const client = new OpenAI({
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": "https://rss-o-matic.com",
+      "X-Title": "RSS-O-Matic",
+    },
+    posthog: usePostHogClient(),
+  });
+
   const prompt = buildPrompt(trimmedHtml, url);
   logger.info(
     { url, model, promptChars: prompt.length },
@@ -93,42 +104,32 @@ export async function generateParserConfig(
   );
   const start = Date.now();
 
-  const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://rss-o-matic.com",
-      "X-Title": "RSS-O-Matic",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0,
-      max_tokens: 4000,
-      provider: { require_parameters: true },
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "parser_config",
-          strict: true,
-          schema: PARSER_CONFIG_SCHEMA,
-        },
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0,
+    max_tokens: 4000,
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "parser_config",
+        strict: true,
+        schema: PARSER_CONFIG_SCHEMA,
       },
-    }),
+    },
+    // OpenRouter-specific
+    provider: { require_parameters: true },
+    // PostHog LLM analytics
+    posthogDistinctId: "rss-o-matic-server",
+    posthogCaptureImmediate: true,
+    posthogProperties: { url },
+  } as Parameters<typeof client.chat.completions.create>[0] & {
+    provider: { require_parameters: boolean };
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`OpenRouter API error ${response.status}: ${text}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = data.choices?.[0]?.message?.content;
+  const content = completion.choices?.[0]?.message?.content;
   if (!content) {
-    logger.error({ data: JSON.stringify(data) }, "Empty AI response");
+    logger.error({ data: JSON.stringify(completion) }, "Empty AI response");
     throw new Error("Empty response from AI");
   }
 
