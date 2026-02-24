@@ -26,7 +26,7 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='50' dominant-baseline='central' text-anchor='middle' font-size='100'>📻</text></svg>" },
         { rel: 'preconnect', href: 'https://fonts.bunny.net' },
-        { rel: 'stylesheet', href: 'https://fonts.bunny.net/css?family=dela-gothic-one:400&display=swap' },
+        { rel: 'stylesheet', href: 'https://fonts.bunny.net/css?family=dela-gothic-one:400&display=fallback' },
       ],
     },
   },
