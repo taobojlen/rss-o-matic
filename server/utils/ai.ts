@@ -1,7 +1,9 @@
+import { consola } from "consola";
 import type { ParserConfig } from "./schema";
 import { validateParserConfig } from "./validate";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
+const logger = consola.withTag("ai");
 
 const FIELD_SELECTOR_SCHEMA = {
   type: "object",
@@ -80,6 +82,13 @@ export async function generateParserConfig(
 ): Promise<ParserConfig> {
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in environment");
 
+  const prompt = buildPrompt(trimmedHtml, url);
+  logger.info(
+    { url, model, promptChars: prompt.length },
+    "Sending request to LLM"
+  );
+  const start = Date.now();
+
   const response = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
     method: "POST",
     headers: {
@@ -90,7 +99,7 @@ export async function generateParserConfig(
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "user", content: buildPrompt(trimmedHtml, url) }],
+      messages: [{ role: "user", content: prompt }],
       temperature: 0,
       max_tokens: 2000,
       provider: { require_parameters: true },
@@ -115,9 +124,15 @@ export async function generateParserConfig(
   };
   const content = data.choices?.[0]?.message?.content;
   if (!content) {
-    console.error("Empty AI response, full data:", JSON.stringify(data));
+    logger.error({ data: JSON.stringify(data) }, "Empty AI response");
     throw new Error("Empty response from AI");
   }
+
+  const durationMs = Date.now() - start;
+  logger.info(
+    { url, model, durationMs, responseChars: content.length },
+    "LLM response received"
+  );
 
   let parsed: unknown;
   try {
