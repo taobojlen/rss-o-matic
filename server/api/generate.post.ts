@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
       trimmed,
       normalized,
       config.openrouterApiKey,
-      config.openrouterModel || "anthropic/claude-sonnet-4"
+      config.openrouterModel
     );
 
     // 4. Validate by running the parser against the actual HTML
