@@ -16,6 +16,23 @@ This is a Nuxt 4 + NuxtHub app deployed to Cloudflare Workers.
 - `server/db/schema.ts` - Drizzle ORM schema definition
 - `server/db/migrations/` - SQL migrations
 
+## Testing
+
+- `pnpm test` - Run unit tests
+- `pnpm test:watch` - Unit tests in watch mode
+- `pnpm test:unit` - Unit tests explicitly
+- `pnpm test:integration` - Integration tests (boots a Nuxt dev server)
+
+Unit tests live in `tests/unit/`, integration tests in `tests/integration/`. Unit tests use plain Vitest (no Nuxt runtime). Integration tests use `@nuxt/test-utils` with `dev: true`.
+
+**Follow red/green TDD when writing new code or fixing bugs:**
+
+1. **Red**: Write a failing test first that captures the expected behavior or reproduces the bug.
+2. **Green**: Write the minimum code to make the test pass.
+3. **Refactor**: Clean up while keeping tests green.
+
+Always run `pnpm test` after making changes to ensure nothing is broken.
+
 ## Environment variables
 
 - `NUXT_OPENROUTER_API_KEY` - Required. OpenRouter API key.

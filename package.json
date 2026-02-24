@@ -7,7 +7,11 @@
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "deploy": "rm -rf .nuxt && nuxt build && ./scripts/upload-sourcemaps.sh && npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc && npx wrangler deploy --no-bundle --config .output/server/wrangler.json",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
@@ -24,8 +28,12 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@nuxt/test-utils": "^4.0.0",
     "@posthog/cli": "^0.6.1",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.7.0",
     "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
     "wrangler": "^4.67.0"
   }
 }
