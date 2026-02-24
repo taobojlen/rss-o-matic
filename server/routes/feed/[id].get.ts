@@ -14,6 +14,14 @@ export default defineEventHandler(async (event) => {
     return new Response("Feed not found", { status: 404 });
   }
 
+  // Log fetch for popularity tracking (fire-and-forget)
+  const ctx = (event as any).context?.cloudflare?.context;
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(logFeedFetch(id));
+  } else {
+    logFeedFetch(id).catch(() => {});
+  }
+
   // Check cache
   const cached = await getCachedFeed(id);
   if (cached) {

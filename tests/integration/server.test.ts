@@ -83,6 +83,34 @@ describe("server integration tests", async () => {
     });
   });
 
+  describe("GET /api/feeds/popular", () => {
+    it("returns an array", async () => {
+      const feeds = await $fetch("/api/feeds/popular");
+      expect(Array.isArray(feeds)).toBe(true);
+    });
+
+    it("each popular feed has expected shape", async () => {
+      const feeds = await $fetch<
+        {
+          id: string;
+          title: string | null;
+          url: string;
+          feedUrl: string;
+          fetchCount: number;
+        }[]
+      >("/api/feeds/popular");
+
+      for (const feed of feeds) {
+        expect(feed).toHaveProperty("id");
+        expect(feed).toHaveProperty("url");
+        expect(feed).toHaveProperty("feedUrl");
+        expect(feed).toHaveProperty("fetchCount");
+        expect(typeof feed.fetchCount).toBe("number");
+        expect(feed.feedUrl).toMatch(/^\/feed\/.+\.xml$/);
+      }
+    });
+  });
+
   describe("GET /feed/:id", () => {
     it("returns 404 for nonexistent feed", async () => {
       const result = await $fetch("/feed/nonexistent123.xml").catch(

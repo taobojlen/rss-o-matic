@@ -563,12 +563,14 @@ a.btn {
 /* ============================================================
    RETRO DIVIDERS — Diamond on a seam line
    ============================================================ */
+.popular-feeds,
 .recent-feeds,
 .site-footer {
   position: relative;
   border-top: 2px solid #a0c4be;
 }
 
+.popular-feeds::before,
 .recent-feeds::before,
 .site-footer::before {
   content: '◆';
@@ -581,6 +583,68 @@ a.btn {
   font-size: 0.85rem;
   line-height: 1;
   color: #7a9e96;
+}
+
+/* ============================================================
+   POPULAR FEEDS
+   ============================================================ */
+.popular-feeds {
+  margin-top: 3rem;
+  padding-top: 2rem;
+}
+
+.popular-feeds-list {
+  list-style: none;
+}
+
+.popular-feeds-list li {
+  padding: 0.75rem 1rem;
+  border: 2px solid;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  background: #fefefe;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.popular-feed-title {
+  display: block;
+  color: #15605a;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.popular-feed-title:hover {
+  text-decoration: underline;
+}
+
+.popular-feed-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.15rem;
+}
+
+.popular-feed-source {
+  font-size: 0.8rem;
+  color: #6a8882;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.popular-feed-count {
+  font-size: 0.75rem;
+  color: #fff;
+  background: #18665c;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: 0.5rem;
 }
 
 /* ============================================================

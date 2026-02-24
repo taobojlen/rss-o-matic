@@ -33,9 +33,18 @@ interface RecentFeed {
   createdAt: string
 }
 
+interface PopularFeed {
+  id: string
+  title: string | null
+  url: string
+  feedUrl: string
+  fetchCount: number
+}
+
 type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'error'
 
 const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
+const { data: popularFeeds } = await useFetch<PopularFeed[]>('/api/feeds/popular')
 
 const url = ref('')
 const step = ref<AppStep>('idle')
@@ -344,6 +353,21 @@ function handleReset() {
         </a>
       </div>
     </div>
+
+    <section v-if="popularFeeds?.length" class="popular-feeds">
+      <h2 class="section-label">Top of the Dial</h2>
+      <ul class="popular-feeds-list">
+        <li v-for="feed in popularFeeds" :key="feed.id">
+          <a :href="feed.feedUrl" class="popular-feed-title">
+            {{ feed.title || feed.url }}
+          </a>
+          <span class="popular-feed-meta">
+            <span class="popular-feed-source">{{ feed.url }}</span>
+            <span class="popular-feed-count">{{ feed.fetchCount }} tune-ins</span>
+          </span>
+        </li>
+      </ul>
+    </section>
 
     <section v-if="recentFeeds?.length" class="recent-feeds">
       <h2 class="section-label">Recent Feeds</h2>
