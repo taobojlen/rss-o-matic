@@ -21,7 +21,17 @@ interface GenerateResult {
   parserConfig: object
 }
 
+interface RecentFeed {
+  id: string
+  title: string | null
+  url: string
+  feedUrl: string
+  createdAt: string
+}
+
 type AppStep = 'idle' | 'loading' | 'preview' | 'error'
+
+const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
 
 const url = ref('')
 const step = ref<AppStep>('idle')
@@ -48,6 +58,7 @@ async function handleSubmit() {
     })
     data.value = res
     step.value = 'preview'
+    refreshRecentFeeds()
   } catch (err: any) {
     errorMessage.value =
       err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
@@ -166,5 +177,17 @@ function handleReset() {
         Try Again
       </button>
     </div>
+
+    <section v-if="recentFeeds?.length" class="recent-feeds">
+      <h2 class="section-label">Recent Feeds</h2>
+      <ul class="recent-feeds-list">
+        <li v-for="feed in recentFeeds" :key="feed.id">
+          <a :href="feed.feedUrl" class="recent-feed-title">
+            {{ feed.title || feed.url }}
+          </a>
+          <span class="recent-feed-source">{{ feed.url }}</span>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>

@@ -252,3 +252,44 @@ body {
   margin-top: 1.5rem;
   text-align: center;
 }
+
+/* Recent feeds */
+.recent-feeds {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #d4c5a9;
+}
+
+.recent-feeds-list {
+  list-style: none;
+}
+
+.recent-feeds-list li {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d4c5a9;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #ffffff;
+}
+
+.recent-feed-title {
+  display: block;
+  color: #c4451a;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.recent-feed-title:hover {
+  text-decoration: underline;
+}
+
+.recent-feed-source {
+  display: block;
+  font-size: 0.8rem;
+  color: #8c7a6b;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
