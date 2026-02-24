@@ -6,31 +6,65 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #0f0f0f;
-  color: #e0e0e0;
+  background: #faf3e0;
+  color: #3d2c1e;
   min-height: 100vh;
 }
 
+/* Retro Header */
+.retro-header {
+  background: #c0392b;
+  text-align: center;
+  padding: 3rem 1rem 2.5rem;
+}
+
+.retro-header-inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.retro-title {
+  font-family: 'Bungee', cursive;
+  font-size: 3.5rem;
+  color: #faf3e0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.retro-tagline {
+  margin-top: 0.5rem;
+}
+
+.tagline-burst {
+  display: inline-block;
+  background: #ffd54f;
+  color: #3d2c1e;
+  padding: 0.4rem 1.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transform: rotate(-2deg);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 600px) {
+  .retro-title {
+    font-size: 2.4rem;
+  }
+  .tagline-burst {
+    font-size: 0.75rem;
+    padding: 0.3rem 1rem;
+  }
+}
+
+/* Content container */
 #root {
   max-width: 720px;
   margin: 0 auto;
   padding: 2rem 1rem;
-}
-
-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-header h1 {
-  font-size: 2rem;
-  color: #ff6b35;
-  margin-bottom: 0.25rem;
-}
-
-header p {
-  color: #888;
-  font-size: 0.95rem;
 }
 
 /* Form */
@@ -43,10 +77,10 @@ header p {
 .url-form input {
   flex: 1;
   padding: 0.75rem 1rem;
-  border: 1px solid #333;
+  border: 1px solid #d4c5a9;
   border-radius: 8px;
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: #ffffff;
+  color: #3d2c1e;
   font-size: 1rem;
 }
 
@@ -56,7 +90,7 @@ header p {
 }
 
 .url-form input::placeholder {
-  color: #555;
+  color: #8c7a6b;
 }
 
 .btn {
@@ -84,8 +118,8 @@ header p {
 }
 
 .btn-secondary {
-  background: #333;
-  color: #e0e0e0;
+  background: #d4c5a9;
+  color: #3d2c1e;
 }
 
 /* Loading */
@@ -98,7 +132,7 @@ header p {
   display: inline-block;
   width: 36px;
   height: 36px;
-  border: 3px solid #333;
+  border: 3px solid #d4c5a9;
   border-top-color: #ff6b35;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -110,13 +144,13 @@ header p {
 
 .loading p {
   margin-top: 1rem;
-  color: #888;
+  color: #8c7a6b;
 }
 
 /* Feed URL box */
 .feed-url-box {
-  background: #1a2a1a;
-  border: 1px solid #2a4a2a;
+  background: #e8f5e0;
+  border: 1px solid #a8d5a0;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -128,7 +162,7 @@ header p {
 .feed-url-box code {
   flex: 1;
   font-size: 0.9rem;
-  color: #6fcf6f;
+  color: #4a7c3f;
   word-break: break-all;
 }
 
@@ -139,10 +173,10 @@ header p {
 
 .items-list li {
   padding: 1rem;
-  border: 1px solid #222;
+  border: 1px solid #d4c5a9;
   border-radius: 8px;
   margin-bottom: 0.5rem;
-  background: #1a1a1a;
+  background: #ffffff;
 }
 
 .items-list li h3 {
@@ -151,7 +185,7 @@ header p {
 }
 
 .items-list li h3 a {
-  color: #7db8ff;
+  color: #c4451a;
   text-decoration: none;
 }
 
@@ -161,26 +195,26 @@ header p {
 
 .items-list li .meta {
   font-size: 0.8rem;
-  color: #666;
+  color: #8c7a6b;
 }
 
 .items-list li .desc {
   font-size: 0.85rem;
-  color: #999;
+  color: #6b5d50;
   margin-top: 0.25rem;
 }
 
 /* Error */
 .error-box {
-  background: #2a1a1a;
-  border: 1px solid #4a2a2a;
+  background: #fde8e0;
+  border: 1px solid #e0a090;
   border-radius: 8px;
   padding: 1.5rem;
   text-align: center;
 }
 
 .error-box p {
-  color: #ff6b6b;
+  color: #c0392b;
   margin-bottom: 1rem;
 }
 
@@ -191,24 +225,24 @@ header p {
 
 .config-toggle summary {
   cursor: pointer;
-  color: #888;
+  color: #8c7a6b;
   font-size: 0.85rem;
 }
 
 .config-toggle pre {
   margin-top: 0.5rem;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #f5ece0;
+  border: 1px solid #d4c5a9;
   border-radius: 8px;
   padding: 1rem;
   font-size: 0.8rem;
   overflow-x: auto;
-  color: #ccc;
+  color: #5a4a3a;
 }
 
 .section-label {
   font-size: 0.85rem;
-  color: #888;
+  color: #8c7a6b;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
