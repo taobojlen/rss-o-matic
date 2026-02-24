@@ -93,6 +93,7 @@ export async function generateParserConfig(
       messages: [{ role: "user", content: buildPrompt(trimmedHtml, url) }],
       temperature: 0,
       max_tokens: 2000,
+      provider: { require_parameters: true },
       response_format: {
         type: "json_schema",
         json_schema: {
