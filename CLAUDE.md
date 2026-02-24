@@ -19,4 +19,12 @@ This is a Nuxt 4 + NuxtHub app deployed to Cloudflare Workers.
 ## Environment variables
 
 - `NUXT_OPENROUTER_API_KEY` - Required. OpenRouter API key.
-- `NUXT_OPENROUTER_MODEL` - Optional. Defaults to `anthropic/claude-sonnet-4`.
+- `NUXT_OPENROUTER_MODEL` - Required.
+
+ALWAYS refer to the relevant docs when fixing a bug or implementing a new feature. This is always better than going off memory; things may have changed.
+
+- [NuxtHub](https://hub.nuxt.com/llms.txt)
+- [Nuxt](https://nuxt.com/llms.txt)
+- [Cloudflare Workers](https://workers.cloudflare.com/llms.txt)
+- [OpenRouter](https://openrouter.ai/docs/llms.txt)
+- [PostHog](https://posthog.com/llms.txt)
