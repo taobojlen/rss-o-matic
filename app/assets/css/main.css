@@ -210,6 +210,16 @@ body {
   color: #4a7c3f;
 }
 
+.label-fade-enter-active,
+.label-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.label-fade-enter-from,
+.label-fade-leave-to {
+  opacity: 0;
+}
+
 .progress-hint {
   margin-top: 1.5rem;
   font-size: 0.8rem;

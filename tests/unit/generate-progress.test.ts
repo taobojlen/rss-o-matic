@@ -44,7 +44,31 @@ describe("useGenerateProgress", () => {
     expect(analyzingLabel.value).toBe("Feeding the page to the machine...");
 
     vi.advanceTimersByTime(12000);
-    expect(analyzingLabel.value).toBe("Reticulating splines...");
+    // Should have changed to one of the slow messages (not the default)
+    expect(analyzingLabel.value).not.toBe("Feeding the page to the machine...");
+  });
+
+  it("rotates through different slow messages", () => {
+    const { analyzingLabel, start } = useGenerateProgress({
+      fetchDelay: 100,
+      splineDelay: 100,
+      rotateInterval: 200,
+    });
+    start();
+    vi.advanceTimersByTime(100); // advance past fetch
+    vi.advanceTimersByTime(100); // first slow message appears
+
+    const firstMessage = analyzingLabel.value;
+    expect(firstMessage).not.toBe("Feeding the page to the machine...");
+
+    // Collect messages over several rotations
+    const seen = new Set<string>([firstMessage]);
+    for (let i = 0; i < 20; i++) {
+      vi.advanceTimersByTime(200);
+      seen.add(analyzingLabel.value);
+    }
+    // Should have seen more than one slow message
+    expect(seen.size).toBeGreaterThan(1);
   });
 
   it("finish() completes all steps from analyzing", () => {
@@ -94,6 +118,20 @@ describe("useGenerateProgress", () => {
     reset();
     vi.advanceTimersByTime(12000);
     // analyzingLabel should have been reset, not changed to spline text
+    expect(analyzingLabel.value).toBe("Feeding the page to the machine...");
+  });
+
+  it("reset() cancels rotation timer too", () => {
+    const { analyzingLabel, start, reset } = useGenerateProgress({
+      fetchDelay: 100,
+      splineDelay: 100,
+      rotateInterval: 200,
+    });
+    start();
+    vi.advanceTimersByTime(100); // past fetch
+    vi.advanceTimersByTime(100); // first slow message
+    reset();
+    vi.advanceTimersByTime(1000);
     expect(analyzingLabel.value).toBe("Feeding the page to the machine...");
   });
 
