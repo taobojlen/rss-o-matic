@@ -3,16 +3,32 @@ import { ref } from "vue";
 export type ProgressStep = "fetching" | "analyzing" | "done";
 
 const DEFAULT_ANALYZING_LABEL = "Feeding the page to the machine...";
-const SPLINE_LABEL = "Reticulating splines...";
+
+export const SLOW_MESSAGES = [
+  "Firing up the transmogrifier...",
+  "Reticulating splines...",
+  "Warming up the vacuum tubes...",
+  "Consulting the instruction manual...",
+  "Adjusting the antenna...",
+  "Polishing the chrome...",
+  "Tuning the frequency...",
+  "Spinning up the centrifuge...",
+  "Lubricating the gears...",
+  "Reversing the polarity...",
+  "Engaging the turbo encabulator...",
+  "Winding the mainspring...",
+];
 
 interface UseGenerateProgressOptions {
   fetchDelay?: number;
   splineDelay?: number;
+  rotateInterval?: number;
 }
 
 export function useGenerateProgress(options?: UseGenerateProgressOptions) {
   const fetchDelay = options?.fetchDelay ?? 3500;
   const splineDelay = options?.splineDelay ?? 12000;
+  const rotateInterval = options?.rotateInterval ?? 5000;
 
   const currentStep = ref<ProgressStep | null>(null);
   const completedSteps = ref(new Set<ProgressStep>());
@@ -20,6 +36,13 @@ export function useGenerateProgress(options?: UseGenerateProgressOptions) {
 
   let fetchTimer: ReturnType<typeof setTimeout> | null = null;
   let splineTimer: ReturnType<typeof setTimeout> | null = null;
+  let rotateTimer: ReturnType<typeof setInterval> | null = null;
+
+  function pickSlowMessage() {
+    const current = analyzingLabel.value;
+    const candidates = SLOW_MESSAGES.filter((m) => m !== current);
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
 
   function clearTimers() {
     if (fetchTimer !== null) {
@@ -29,6 +52,10 @@ export function useGenerateProgress(options?: UseGenerateProgressOptions) {
     if (splineTimer !== null) {
       clearTimeout(splineTimer);
       splineTimer = null;
+    }
+    if (rotateTimer !== null) {
+      clearInterval(rotateTimer);
+      rotateTimer = null;
     }
   }
 
@@ -43,7 +70,10 @@ export function useGenerateProgress(options?: UseGenerateProgressOptions) {
       currentStep.value = "analyzing";
 
       splineTimer = setTimeout(() => {
-        analyzingLabel.value = SPLINE_LABEL;
+        analyzingLabel.value = pickSlowMessage();
+        rotateTimer = setInterval(() => {
+          analyzingLabel.value = pickSlowMessage();
+        }, rotateInterval);
       }, splineDelay);
     }, fetchDelay);
   }

@@ -215,7 +215,9 @@ function handleReset() {
             <span v-else-if="progress.currentStep.value === 'analyzing'" class="step-spinner" />
             <span v-else class="step-dot" />
           </span>
-          <span class="step-label">{{ progress.analyzingLabel.value }}</span>
+          <Transition name="label-fade" mode="out-in">
+            <span class="step-label" :key="progress.analyzingLabel.value">{{ progress.analyzingLabel.value }}</span>
+          </Transition>
         </div>
 
         <div
