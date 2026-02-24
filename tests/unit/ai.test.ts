@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generateParserConfig } from "~/server/utils/ai";
+
+const { mockCreate, MockOpenAI } = vi.hoisted(() => {
+  const mockCreate = vi.fn();
+  const MockOpenAI = vi.fn().mockImplementation(function () {
+    return { chat: { completions: { create: mockCreate } } };
+  });
+  return { mockCreate, MockOpenAI };
+});
 
 // Mock consola to suppress logging during tests
 vi.mock("consola", () => ({
@@ -11,6 +18,21 @@ vi.mock("consola", () => ({
   },
 }));
 
+// Mock PostHog client utility (imported via relative path in ai.ts)
+vi.mock("../../server/utils/posthog", () => ({
+  usePostHogClient: vi.fn().mockReturnValue({
+    capture: vi.fn(),
+    shutdown: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
+// Mock @posthog/ai/openai
+vi.mock("@posthog/ai/openai", () => ({
+  OpenAI: MockOpenAI,
+}));
+
+import { generateParserConfig } from "~/server/utils/ai";
+
 const VALID_CONFIG = {
   itemSelector: ".item",
   feed: { title: "Feed" },
@@ -20,27 +42,15 @@ const VALID_CONFIG = {
   },
 };
 
-function mockFetchResponse(body: unknown, ok = true, status = 200) {
-  return vi.fn().mockResolvedValue({
-    ok,
-    status,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(JSON.stringify(body)),
-  });
-}
-
 describe("generateParserConfig", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns parsed config on successful API response", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetchResponse({
-        choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-      })
-    );
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
 
     const result = await generateParserConfig(
       "<html></html>",
@@ -58,15 +68,8 @@ describe("generateParserConfig", () => {
     ).rejects.toThrow("OPENROUTER_API_KEY");
   });
 
-  it("throws on non-ok HTTP response", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 429,
-        text: () => Promise.resolve("Rate limited"),
-      })
-    );
+  it("throws on API error", async () => {
+    mockCreate.mockRejectedValue(new Error("429 Rate limited"));
 
     await expect(
       generateParserConfig(
@@ -79,12 +82,9 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on empty AI response", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetchResponse({
-        choices: [{ message: { content: "" } }],
-      })
-    );
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "" } }],
+    });
 
     await expect(
       generateParserConfig(
@@ -97,7 +97,7 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on missing choices", async () => {
-    vi.stubGlobal("fetch", mockFetchResponse({}));
+    mockCreate.mockResolvedValue({});
 
     await expect(
       generateParserConfig(
@@ -110,12 +110,9 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on invalid JSON in AI response", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetchResponse({
-        choices: [{ message: { content: "not json {{{" } }],
-      })
-    );
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "not json {{{" } }],
+    });
 
     await expect(
       generateParserConfig(
@@ -128,12 +125,9 @@ describe("generateParserConfig", () => {
   });
 
   it("throws when AI returns invalid config shape", async () => {
-    vi.stubGlobal(
-      "fetch",
-      mockFetchResponse({
-        choices: [{ message: { content: JSON.stringify({ bad: true }) } }],
-      })
-    );
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ bad: true }) } }],
+    });
 
     await expect(
       generateParserConfig(
@@ -145,11 +139,10 @@ describe("generateParserConfig", () => {
     ).rejects.toThrow();
   });
 
-  it("sends correct headers to OpenRouter", async () => {
-    const mockFn = mockFetchResponse({
+  it("creates OpenAI client with OpenRouter config", async () => {
+    mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
     });
-    vi.stubGlobal("fetch", mockFn);
 
     await generateParserConfig(
       "<html></html>",
@@ -158,18 +151,42 @@ describe("generateParserConfig", () => {
       "my-model"
     );
 
-    const [url, options] = mockFn.mock.calls[0];
-    expect(url).toContain("openrouter.ai");
-    expect(options.headers.Authorization).toBe("Bearer my-api-key");
-    expect(options.headers["Content-Type"]).toBe("application/json");
-    expect(JSON.parse(options.body).model).toBe("my-model");
+    expect(MockOpenAI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "my-api-key",
+        baseURL: "https://openrouter.ai/api/v1",
+        defaultHeaders: expect.objectContaining({
+          "HTTP-Referer": "https://rss-o-matic.com",
+          "X-Title": "RSS-O-Matic",
+        }),
+      })
+    );
   });
 
-  it("includes the URL in the prompt body", async () => {
-    const mockFn = mockFetchResponse({
+  it("passes correct params to chat.completions.create", async () => {
+    mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
     });
-    vi.stubGlobal("fetch", mockFn);
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "my-api-key",
+      "my-model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.model).toBe("my-model");
+    expect(params.temperature).toBe(0);
+    expect(params.max_tokens).toBe(4000);
+    expect(params.provider).toEqual({ require_parameters: true });
+    expect(params.response_format.type).toBe("json_schema");
+  });
+
+  it("includes the URL in the prompt", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
 
     await generateParserConfig(
       "<html></html>",
@@ -178,7 +195,25 @@ describe("generateParserConfig", () => {
       "model"
     );
 
-    const body = JSON.parse(mockFn.mock.calls[0][1].body);
-    expect(body.messages[0].content).toContain("https://example.com/blog");
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.messages[0].content).toContain("https://example.com/blog");
+  });
+
+  it("passes PostHog tracking params", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.posthogDistinctId).toBe("rss-o-matic-server");
+    expect(params.posthogCaptureImmediate).toBe(true);
+    expect(params.posthogProperties).toEqual({ url: "https://example.com" });
   });
 });
