@@ -6,7 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
-    "deploy": "rm -rf .nuxt && nuxt build && ./scripts/upload-sourcemaps.sh && npx wrangler d1 migrations apply DB_MIGRATIONS --remote --config wrangler.jsonc && npx wrangler deploy --config .output/server/wrangler.json",
+    "deploy": "rm -rf .nuxt && nuxt build && ./scripts/upload-sourcemaps.sh && npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc && npx wrangler deploy --config .output/server/wrangler.json",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
