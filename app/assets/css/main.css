@@ -69,6 +69,16 @@ body {
   padding: 2rem 1rem;
 }
 
+/* Hero description */
+.hero-description {
+  text-align: center;
+  font-size: 1.05rem;
+  color: #5a4a3a;
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 auto 2rem;
+}
+
 /* Form */
 .url-form {
   display: flex;
