@@ -164,6 +164,11 @@ function handleReset() {
   </header>
 
   <div id="root">
+    <p v-if="step === 'idle' || step === 'loading'" class="hero-description">
+      Got a favorite website with no RSS feed? Just punch in the URL and our
+      robots will manufacture one for you.
+    </p>
+
     <form
       v-if="step === 'idle' || step === 'loading'"
       class="url-form"
@@ -353,7 +358,7 @@ function handleReset() {
     </section>
 
     <footer class="site-footer">
-      <p>Made by <a href="https://btao.org/" target="_blank">Tao</a> | Contribute on <a href="https://github.com/taobojlen/rss-o-matic" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+      <p>Est. 2026 | Assembled by <a href="https://btao.org/" target="_blank">Tao</a> | Contribute on <a href="https://github.com/taobojlen/rss-o-matic" target="_blank" rel="noopener noreferrer">GitHub</a></p>
     </footer>
   </div>
 </template>
