@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
     if (existing) {
       const parserConfig = JSON.parse(existing.parser_config);
       const cachedPreview = await getCachedPreview(existing.id);
+      capturePostHogEvent(event, "feed_generated", { outcome: "existing", url: normalized });
       if (cachedPreview) {
         return {
           feedId: existing.id,
@@ -78,6 +79,7 @@ export default defineEventHandler(async (event) => {
 
     // 6. Return preview
     const feedUrl = `/feed/${feedId}.xml`;
+    capturePostHogEvent(event, "feed_generated", { outcome: "created", url: normalized });
     return {
       feedId,
       feedUrl,
@@ -85,6 +87,7 @@ export default defineEventHandler(async (event) => {
       parserConfig,
     };
   } catch (err: unknown) {
+    capturePostHogEvent(event, "feed_generated", { outcome: "error", url: normalized });
     // Re-throw if already an H3Error
     if (err && typeof err === "object" && "statusCode" in err) {
       throw err;
