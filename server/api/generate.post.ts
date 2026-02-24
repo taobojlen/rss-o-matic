@@ -7,8 +7,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "url is required" });
   }
 
+  let normalized: string;
   try {
-    new URL(body.url);
+    normalized = normalizeUrl(body.url);
   } catch {
     throw createError({ statusCode: 400, statusMessage: "Invalid URL" });
   }
@@ -16,8 +17,22 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
   try {
+    // 0. Check if a feed already exists for this URL
+    const existing = await getFeedByUrl(normalized);
+    if (existing) {
+      const parserConfig = JSON.parse(existing.parser_config);
+      const html = await fetchPage(normalized);
+      const preview = parseHtml(html, parserConfig, normalized);
+      return {
+        feedId: existing.id,
+        feedUrl: `/feed/${existing.id}.xml`,
+        preview,
+        parserConfig,
+      };
+    }
+
     // 1. Fetch the page
-    const html = await fetchPage(body.url);
+    const html = await fetchPage(normalized);
 
     // 2. Trim HTML for AI
     const trimmed = trimHtml(html);
@@ -25,13 +40,13 @@ export default defineEventHandler(async (event) => {
     // 3. Generate parser config via AI
     const parserConfig = await generateParserConfig(
       trimmed,
-      body.url,
+      normalized,
       config.openrouterApiKey,
       config.openrouterModel || "anthropic/claude-sonnet-4"
     );
 
     // 4. Validate by running the parser against the actual HTML
-    const preview = parseHtml(html, parserConfig, body.url);
+    const preview = parseHtml(html, parserConfig, normalized);
     if (preview.items.length === 0) {
       throw createError({
         statusCode: 422,
@@ -44,7 +59,7 @@ export default defineEventHandler(async (event) => {
     const feedId = nanoid(12);
     await saveFeed(
       feedId,
-      body.url,
+      normalized,
       preview.title,
       JSON.stringify(parserConfig)
     );

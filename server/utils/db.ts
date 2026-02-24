@@ -19,6 +19,24 @@ export async function saveFeed(
   });
 }
 
+export async function getFeedByUrl(url: string): Promise<FeedRecord | null> {
+  const rows = await db
+    .select()
+    .from(schema.feeds)
+    .where(eq(schema.feeds.url, url))
+    .limit(1);
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    id: row.id,
+    url: row.url,
+    title: row.title,
+    parser_config: row.parserConfig,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
 export async function getFeed(id: string): Promise<FeedRecord | null> {
   const rows = await db
     .select()
