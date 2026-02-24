@@ -2,6 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rss-o-matic",
   "compatibility_date": "2025-02-24",
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
   "vars": {
     "NUXT_OPENROUTER_MODEL": "minimax/minimax-m2.5"
   }

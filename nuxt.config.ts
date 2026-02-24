@@ -49,9 +49,12 @@ export default defineNuxtConfig({
     clientConfig: {
       capture_exceptions: true, // Enables automatic exception capture on the client side (Vue)
       defaults: '2026-01-30',
+
     },
     serverConfig: {
       enableExceptionAutocapture: true, // Enables automatic exception capture on the server side (Nitro)
+      flushInterval: 0, // Don't wait for interval
+      flushAt: 1 // Send events immediately in edge environment
     },
     sourcemaps: {
       enabled: true,
@@ -59,5 +62,6 @@ export default defineNuxtConfig({
       personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY ?? '', // Your personal API key from PostHog settings https://app.posthog.com/settings/user-api-keys (requires organization:read and error_tracking:write scopes)
       releaseName: 'rss-o-matic' // Optional: defaults to git repository name
     },
+
   }
 })
