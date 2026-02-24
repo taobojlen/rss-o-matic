@@ -96,6 +96,7 @@ function handleReset() {
         placeholder="https://example.com/blog"
         :disabled="step === 'loading'"
         required
+        autofocus
       />
       <button
         type="submit"
