@@ -54,6 +54,22 @@ export async function getRecentFeeds(limit: number = 5): Promise<FeedRecord[]> {
   }));
 }
 
+export async function updateFeedConfig(
+  id: string,
+  parserConfig: string,
+  title: string | null
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .update(schema.feeds)
+    .set({
+      parserConfig,
+      title,
+      updatedAt: now,
+    })
+    .where(eq(schema.feeds.id, id));
+}
+
 export async function getFeed(id: string): Promise<FeedRecord | null> {
   const rows = await db
     .select()

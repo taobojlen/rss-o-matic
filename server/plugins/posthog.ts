@@ -1,35 +1,21 @@
-import { PostHog } from 'posthog-node'
+import { captureServerException } from "../utils/posthog";
 
 export default defineNitroPlugin((nitroApp) => {
-  const config = useRuntimeConfig()
-  const { publicKey, host } = config.public.posthog as {
-    publicKey: string
-    host: string
-  }
-
-  nitroApp.hooks.hook('error', (error, { event }) => {
-    const client = new PostHog(publicKey, {
-      host,
-      flushInterval: 0,
-      flushAt: 1,
-    })
-
-    const props: Record<string, unknown> = {
-      $process_person_profile: false,
-    }
+  nitroApp.hooks.hook("error", (error, { event }) => {
+    const props: Record<string, unknown> = {};
     if (event?.path) {
-      props.path = event.path
-      props.$current_url = event.path
+      props.path = event.path;
+      props.$current_url = event.path;
     }
     if (event?.method) {
-      props.method = event.method
+      props.method = event.method;
     }
 
-    client.captureException(error, crypto.randomUUID(), props)
+    const done = captureServerException(error, props);
 
-    const ctx = event?.context?.cloudflare?.context
+    const ctx = event?.context?.cloudflare?.context;
     if (ctx?.waitUntil) {
-      ctx.waitUntil(client.shutdown())
+      ctx.waitUntil(done);
     }
-  })
-})
+  });
+});
