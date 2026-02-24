@@ -8,11 +8,14 @@ export async function saveFeed(
   title: string | null,
   parserConfig: string
 ): Promise<void> {
+  const now = new Date().toISOString();
   await db.insert(schema.feeds).values({
     id,
     url,
     title,
     parserConfig,
+    createdAt: now,
+    updatedAt: now,
   });
 }
 
