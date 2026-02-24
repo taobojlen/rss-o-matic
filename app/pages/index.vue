@@ -39,6 +39,7 @@ const data = ref<GenerateResult | null>(null)
 const errorMessage = ref('')
 const copied = ref(false)
 const origin = ref('')
+const progress = useGenerateProgress()
 
 onMounted(() => {
   origin.value = window.location.origin
@@ -50,16 +51,21 @@ async function handleSubmit() {
   step.value = 'loading'
   data.value = null
   errorMessage.value = ''
+  progress.start()
 
   try {
     const res = await $fetch<GenerateResult>('/api/generate', {
       method: 'POST',
       body: { url: url.value.trim() },
     })
+    progress.finish()
     data.value = res
+    // Brief pause so the user sees the "done" checkmark
+    await new Promise(resolve => setTimeout(resolve, 600))
     step.value = 'preview'
     refreshRecentFeeds()
   } catch (err: any) {
+    progress.reset()
     errorMessage.value =
       err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
     step.value = 'error'
@@ -82,6 +88,7 @@ function handleReset() {
   data.value = null
   errorMessage.value = ''
   copied.value = false
+  progress.reset()
 }
 </script>
 
@@ -118,12 +125,55 @@ function handleReset() {
       </button>
     </form>
 
-    <div v-if="step === 'loading'" class="loading">
-      <div class="spinner" />
-      <p>Fetching page and analyzing structure...</p>
-      <p style="font-size: 0.8rem; color: #8c7a6b; margin-top: 0.5rem">
-        This may take 10-30 seconds
-      </p>
+    <div v-if="step === 'loading'" class="progress-panel">
+      <div class="progress-steps">
+        <div
+          class="progress-step"
+          :class="{
+            active: progress.currentStep.value === 'fetching',
+            completed: progress.completedSteps.value.has('fetching'),
+          }"
+        >
+          <span class="step-indicator">
+            <span v-if="progress.completedSteps.value.has('fetching')" class="step-check">&#10003;</span>
+            <span v-else class="step-spinner" />
+          </span>
+          <span class="step-label">Dialing up the webpage...</span>
+        </div>
+
+        <div
+          class="progress-step"
+          :class="{
+            active: progress.currentStep.value === 'analyzing',
+            completed: progress.completedSteps.value.has('analyzing'),
+            pending: !progress.completedSteps.value.has('fetching') && progress.currentStep.value !== 'analyzing',
+          }"
+        >
+          <span class="step-indicator">
+            <span v-if="progress.completedSteps.value.has('analyzing')" class="step-check">&#10003;</span>
+            <span v-else-if="progress.currentStep.value === 'analyzing'" class="step-spinner" />
+            <span v-else class="step-dot" />
+          </span>
+          <span class="step-label">{{ progress.analyzingLabel.value }}</span>
+        </div>
+
+        <div
+          class="progress-step"
+          :class="{
+            active: progress.currentStep.value === 'done',
+            completed: progress.completedSteps.value.has('done'),
+            pending: progress.currentStep.value !== 'done',
+          }"
+        >
+          <span class="step-indicator">
+            <span v-if="progress.completedSteps.value.has('done')" class="step-check">&#10003;</span>
+            <span v-else class="step-dot" />
+          </span>
+          <span class="step-label">Your feed is piping hot!</span>
+        </div>
+      </div>
+
+      <p class="progress-hint">Hang tight &mdash; good feeds take a moment</p>
     </div>
 
     <div v-if="step === 'preview' && data">
