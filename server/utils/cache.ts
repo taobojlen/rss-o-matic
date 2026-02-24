@@ -1,4 +1,4 @@
-import { kv } from "@nuxthub/kv";
+import { kv } from '@nuxthub/kv'
 
 const CACHE_TTL_SECONDS = 15 * 60; // 15 minutes
 

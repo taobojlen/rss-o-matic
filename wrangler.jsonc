@@ -11,6 +11,12 @@
   "vars": {
     "NUXT_OPENROUTER_MODEL": "minimax/minimax-m2.5"
   },
+"kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "405d94875ef249ff866a5314e032ff8f"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

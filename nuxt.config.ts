@@ -8,10 +8,7 @@ export default defineNuxtConfig({
       driver: 'd1',
       connection: { databaseId: '31ed3c46-030e-4448-b4ad-fe38e055cedf' },
     },
-    kv: {
-      driver: 'cloudflare-kv-binding',
-      namespaceId: '405d94875ef249ff866a5314e032ff8f',
-    },
+    kv: true,
   },
   runtimeConfig: {
     openrouterApiKey: '',
