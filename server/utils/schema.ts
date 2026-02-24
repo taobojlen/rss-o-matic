@@ -54,6 +54,12 @@ export interface ExtractedFeed {
   items: FeedItem[];
 }
 
+export interface DiscoveredFeed {
+  url: string;
+  title?: string;
+  feedType: "rss" | "atom" | "json";
+}
+
 export interface FeedRecord {
   id: string;
   url: string;

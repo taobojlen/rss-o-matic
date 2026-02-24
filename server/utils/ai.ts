@@ -4,6 +4,10 @@ import type { ParserConfig } from "./schema";
 import { validateParserConfig } from "./validate";
 import { usePostHogClient } from "./posthog";
 
+export type AiParserResult =
+  | { unsuitable: false; config: ParserConfig }
+  | { unsuitable: true; reason: string };
+
 const logger = consola.withTag("ai");
 
 const FIELD_SELECTOR_SCHEMA = {
@@ -24,6 +28,8 @@ const FIELD_SELECTOR_OR_STRING_SCHEMA = {
 const PARSER_CONFIG_SCHEMA = {
   type: "object",
   properties: {
+    unsuitable: { type: "boolean" },
+    unsuitableReason: { type: "string" },
     feed: {
       type: "object",
       properties: {
@@ -50,7 +56,7 @@ const PARSER_CONFIG_SCHEMA = {
       additionalProperties: false,
     },
   },
-  required: ["feed", "itemSelector", "fields"],
+  required: ["unsuitable", "unsuitableReason", "feed", "itemSelector", "fields"],
   additionalProperties: false,
 };
 
@@ -59,10 +65,14 @@ function buildPrompt(trimmedHtml: string, url: string): string {
 
 The page URL is: ${url}
 
-Analyze the HTML below and identify the repeating pattern of content items (articles, posts, links, products, etc.).
+First, assess whether this page is suitable for RSS feed generation. A page is suitable if it contains a repeating list of content items (blog posts, articles, news items, podcast episodes, etc.) that would make sense as an RSS feed. A page is NOT suitable if it is a single article/post, a landing page, a web store/product page, a login/signup form, a documentation page, or any page without a clear list of updatable content items.
+
+If the page is NOT suitable, set "unsuitable" to true and "unsuitableReason" to a short explanation of why (e.g. "This appears to be a single blog post, not a listing page"). Still provide placeholder values for the other required fields.
+
+If the page IS suitable, set "unsuitable" to false and "unsuitableReason" to an empty string, then analyze the HTML and identify the repeating pattern of content items.
 
 Example: for a page with <ul class="PostList-module__abc123__list"><li class="PostList-module__abc123__item"><a href="/post/1"><span>Title</span><time>Jan 1</time></a></li>...</ul>, the output should be:
-{"feed":{"title":"My Blog"},"itemSelector":"[class*='PostList'][class*='list'] > li","fields":{"title":{"selector":"span"},"link":{"selector":"a","attr":"href"},"pubDate":{"selector":"time"}}}
+{"unsuitable":false,"unsuitableReason":"","feed":{"title":"My Blog"},"itemSelector":"[class*='PostList'][class*='list'] > li","fields":{"title":{"selector":"span"},"link":{"selector":"a","attr":"href"},"pubDate":{"selector":"time"}}}
 
 Rules:
 1. itemSelector MUST match multiple elements (the repeating items).
@@ -84,7 +94,7 @@ export async function generateParserConfig(
   url: string,
   apiKey: string,
   model: string
-): Promise<ParserConfig> {
+): Promise<AiParserResult> {
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in environment");
 
   const client = new OpenAI({
@@ -145,5 +155,10 @@ export async function generateParserConfig(
     throw new Error(`AI returned invalid JSON: ${content.slice(0, 200)}`);
   }
 
-  return validateParserConfig(parsed);
+  const raw = parsed as Record<string, unknown>;
+  if (raw.unsuitable === true && typeof raw.unsuitableReason === "string") {
+    return { unsuitable: true, reason: raw.unsuitableReason };
+  }
+
+  return { unsuitable: false, config: validateParserConfig(parsed) };
 }

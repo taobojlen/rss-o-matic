@@ -10,6 +10,7 @@ const mockSaveFeed = vi.fn();
 const mockGetCachedPreview = vi.fn();
 const mockSetCachedPreview = vi.fn();
 const mockNormalizeUrl = vi.fn((url: string) => url);
+const mockDetectExistingFeeds = vi.fn(() => []);
 const mockCreateError = vi.fn((opts: any) => {
   const err = new Error(opts.statusMessage) as any;
   err.statusCode = opts.statusCode;
@@ -32,6 +33,7 @@ vi.stubGlobal("getCachedPreview", mockGetCachedPreview);
 vi.stubGlobal("setCachedPreview", mockSetCachedPreview);
 vi.stubGlobal("normalizeUrl", mockNormalizeUrl);
 vi.stubGlobal("capturePostHogEvent", mockCapturePostHogEvent);
+vi.stubGlobal("detectExistingFeeds", mockDetectExistingFeeds);
 vi.stubGlobal("createError", mockCreateError);
 vi.stubGlobal("readBody", mockReadBody);
 vi.stubGlobal("useRuntimeConfig", mockUseRuntimeConfig);
@@ -46,9 +48,10 @@ describe("POST /api/generate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNormalizeUrl.mockImplementation((url: string) => url);
+    mockDetectExistingFeeds.mockReturnValue([]);
   });
 
-  it("returns existing feed without fetching the page", async () => {
+  it("returns existing feed with type 'generated' without fetching the page", async () => {
     const cachedPreview = {
       title: "Example Blog",
       description: "A blog",
@@ -74,11 +77,9 @@ describe("POST /api/generate", () => {
     );
     const result = await handler({} as any);
 
-    // Should NOT have called fetchPage
     expect(mockFetchPage).not.toHaveBeenCalled();
-
-    // Should return the existing feed info with cached preview
     expect(result).toEqual({
+      type: "generated",
       feedId: "existingId123",
       feedUrl: "/feed/existingId123.xml",
       preview: cachedPreview,
@@ -114,12 +115,10 @@ describe("POST /api/generate", () => {
     );
     const result = await handler({} as any);
 
-    // Should fetch page since cache was empty
     expect(mockFetchPage).toHaveBeenCalledWith("https://example.com/blog");
-    // Should NOT call AI — uses existing config
     expect(mockGenerateParserConfig).not.toHaveBeenCalled();
-    // Should cache the preview for next time
     expect(mockSetCachedPreview).toHaveBeenCalledWith("existingId123", parsedPreview);
+    expect(result.type).toBe("generated");
     expect(result.preview).toEqual(parsedPreview);
   });
 
@@ -135,7 +134,10 @@ describe("POST /api/generate", () => {
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
     mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-    mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: ".post" },
+    });
     mockParseHtml.mockReturnValue(preview);
 
     const handler = await import("~/server/api/generate.post").then(
@@ -151,7 +153,10 @@ describe("POST /api/generate", () => {
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
     mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-    mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: ".post" },
+    });
     mockParseHtml.mockReturnValue({
       title: "Blog",
       description: "",
@@ -167,7 +172,87 @@ describe("POST /api/generate", () => {
     expect(mockFetchPage).toHaveBeenCalledWith("https://example.com/blog");
     expect(mockGenerateParserConfig).toHaveBeenCalled();
     expect(mockSaveFeed).toHaveBeenCalled();
+    expect(result.type).toBe("generated");
     expect(result.feedId).toBe("testid123456");
+  });
+
+  it("returns existing_feed when HTML contains RSS link tags", async () => {
+    const discoveredFeeds = [
+      { url: "https://example.com/feed.xml", title: "My Blog", feedType: "rss" as const },
+    ];
+
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue(
+      '<html><head><link rel="alternate" type="application/rss+xml" href="/feed.xml" title="My Blog"></head><body></body></html>'
+    );
+    mockDetectExistingFeeds.mockReturnValue(discoveredFeeds);
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "existing_feed",
+      existingFeeds: discoveredFeeds,
+    });
+    // Should NOT call AI or save anything
+    expect(mockTrimHtml).not.toHaveBeenCalled();
+    expect(mockGenerateParserConfig).not.toHaveBeenCalled();
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("returns unsuitable when AI flags page as unsuitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><h1>Welcome</h1></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<h1>Welcome</h1>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: true,
+      reason: "This appears to be a landing page with no repeating content",
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "unsuitable",
+      reason: "This appears to be a landing page with no repeating content",
+    });
+    // Should NOT parse or save
+    expect(mockParseHtml).not.toHaveBeenCalled();
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("skips feed detection for URLs already in DB", async () => {
+    const existingFeed = {
+      id: "existingId123",
+      url: "https://example.com/blog",
+      title: "Example Blog",
+      parser_config: JSON.stringify({ itemSelector: ".post" }),
+      created_at: "2024-01-01T00:00:00.000Z",
+      updated_at: "2024-01-01T00:00:00.000Z",
+    };
+
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(existingFeed);
+    mockGetCachedPreview.mockResolvedValue({
+      title: "Example Blog",
+      description: "",
+      link: "https://example.com/blog",
+      items: [],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    await handler({} as any);
+
+    expect(mockDetectExistingFeeds).not.toHaveBeenCalled();
   });
 
   describe("posthog tracking", () => {
@@ -207,7 +292,10 @@ describe("POST /api/generate", () => {
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
       mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-      mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+      mockGenerateParserConfig.mockResolvedValue({
+        unsuitable: false,
+        config: { itemSelector: ".post" },
+      });
       mockParseHtml.mockReturnValue({
         title: "Blog",
         description: "",
@@ -224,6 +312,51 @@ describe("POST /api/generate", () => {
         {},
         "feed_generated",
         { outcome: "created", url: "https://example.com/blog" }
+      );
+    });
+
+    it("tracks 'existing_feed' outcome when site has RSS", async () => {
+      const discoveredFeeds = [
+        { url: "https://example.com/feed.xml", title: "Blog", feedType: "rss" as const },
+      ];
+
+      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+      mockGetFeedByUrl.mockResolvedValue(null);
+      mockFetchPage.mockResolvedValue("<html></html>");
+      mockDetectExistingFeeds.mockReturnValue(discoveredFeeds);
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await handler({} as any);
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "existing_feed", url: "https://example.com/blog" }
+      );
+    });
+
+    it("tracks 'unsuitable' outcome when AI flags page", async () => {
+      mockReadBody.mockResolvedValue({ url: "https://example.com" });
+      mockGetFeedByUrl.mockResolvedValue(null);
+      mockFetchPage.mockResolvedValue("<html><body><h1>Welcome</h1></body></html>");
+      mockDetectExistingFeeds.mockReturnValue([]);
+      mockTrimHtml.mockReturnValue("<h1>Welcome</h1>");
+      mockGenerateParserConfig.mockResolvedValue({
+        unsuitable: true,
+        reason: "Landing page",
+      });
+
+      const handler = await import("~/server/api/generate.post").then(
+        (m) => m.default
+      );
+      await handler({} as any);
+
+      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+        {},
+        "feed_generated",
+        { outcome: "unsuitable", url: "https://example.com" }
       );
     });
 
@@ -249,7 +382,10 @@ describe("POST /api/generate", () => {
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html></html>");
       mockTrimHtml.mockReturnValue("<html></html>");
-      mockGenerateParserConfig.mockResolvedValue({ itemSelector: ".post" });
+      mockGenerateParserConfig.mockResolvedValue({
+        unsuitable: false,
+        config: { itemSelector: ".post" },
+      });
       mockParseHtml.mockReturnValue({
         title: "Blog",
         description: "",

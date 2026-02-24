@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
       capturePostHogEvent(event, "feed_generated", { outcome: "existing", url: normalized });
       if (cachedPreview) {
         return {
+          type: "generated" as const,
           feedId: existing.id,
           feedUrl: `/feed/${existing.id}.xml`,
           preview: cachedPreview,
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
       const preview = parseHtml(html, parserConfig, normalized);
       await setCachedPreview(existing.id, preview);
       return {
+        type: "generated" as const,
         feedId: existing.id,
         feedUrl: `/feed/${existing.id}.xml`,
         preview,
@@ -46,18 +48,39 @@ export default defineEventHandler(async (event) => {
     // 1. Fetch the page
     const html = await fetchPage(normalized);
 
-    // 2. Trim HTML for AI
+    // 2. Check for existing RSS/Atom feeds advertised in the HTML
+    const existingFeeds = detectExistingFeeds(html, normalized);
+    if (existingFeeds.length > 0) {
+      capturePostHogEvent(event, "feed_generated", { outcome: "existing_feed", url: normalized });
+      return {
+        type: "existing_feed" as const,
+        existingFeeds,
+      };
+    }
+
+    // 3. Trim HTML for AI
     const trimmed = trimHtml(html);
 
-    // 3. Generate parser config via AI
-    const parserConfig = await generateParserConfig(
+    // 4. Generate parser config via AI
+    const aiResult = await generateParserConfig(
       trimmed,
       normalized,
       config.openrouterApiKey,
       config.openrouterModel
     );
 
-    // 4. Validate by running the parser against the actual HTML
+    // 5. Check if AI flagged the page as unsuitable
+    if (aiResult.unsuitable) {
+      capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
+      return {
+        type: "unsuitable" as const,
+        reason: aiResult.reason,
+      };
+    }
+
+    const parserConfig = aiResult.config;
+
+    // 6. Validate by running the parser against the actual HTML
     const preview = parseHtml(html, parserConfig, normalized);
     if (preview.items.length === 0) {
       throw createError({
@@ -67,7 +90,7 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // 5. Save to database and cache preview
+    // 7. Save to database and cache preview
     const feedId = nanoid(12);
     await saveFeed(
       feedId,
@@ -77,10 +100,11 @@ export default defineEventHandler(async (event) => {
     );
     await setCachedPreview(feedId, preview);
 
-    // 6. Return preview
+    // 8. Return preview
     const feedUrl = `/feed/${feedId}.xml`;
     capturePostHogEvent(event, "feed_generated", { outcome: "created", url: normalized });
     return {
+      type: "generated" as const,
       feedId,
       feedUrl,
       preview,

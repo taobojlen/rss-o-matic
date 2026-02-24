@@ -34,6 +34,8 @@ vi.mock("@posthog/ai/openai", () => ({
 import { generateParserConfig } from "~/server/utils/ai";
 
 const VALID_CONFIG = {
+  unsuitable: false,
+  unsuitableReason: "",
   itemSelector: ".item",
   feed: { title: "Feed" },
   fields: {
@@ -58,8 +60,11 @@ describe("generateParserConfig", () => {
       "test-key",
       "test-model"
     );
-    expect(result.itemSelector).toBe(".item");
-    expect(result.fields.title.selector).toBe("h2");
+    expect(result.unsuitable).toBe(false);
+    if (!result.unsuitable) {
+      expect(result.config.itemSelector).toBe(".item");
+      expect(result.config.fields.title.selector).toBe("h2");
+    }
   });
 
   it("throws when API key is empty", async () => {
@@ -181,6 +186,35 @@ describe("generateParserConfig", () => {
     expect(params.max_tokens).toBe(4000);
     expect(params.provider).toEqual({ require_parameters: true });
     expect(params.response_format.type).toBe("json_schema");
+  });
+
+  it("returns unsuitable result when AI flags page", async () => {
+    const unsuitableResponse = {
+      unsuitable: true,
+      unsuitableReason: "This appears to be a single blog post, not a listing page",
+      feed: { title: "Placeholder" },
+      itemSelector: "div",
+      fields: {
+        title: { selector: "h1" },
+        link: { selector: "a", attr: "href" },
+      },
+    };
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(unsuitableResponse) } }],
+    });
+
+    const result = await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+    expect(result.unsuitable).toBe(true);
+    if (result.unsuitable) {
+      expect(result.reason).toBe(
+        "This appears to be a single blog post, not a listing page"
+      );
+    }
   });
 
   it("includes the URL in the prompt", async () => {
