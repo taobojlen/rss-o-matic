@@ -62,8 +62,7 @@ export default defineEventHandler(async (event) => {
     if (err && typeof err === "object" && "statusCode" in err) {
       throw err;
     }
-    const message = err instanceof Error ? err.message : "Internal error";
     console.error("Generate error:", err);
-    throw createError({ statusCode: 500, statusMessage: message });
+    throw createError({ statusCode: 500, statusMessage: "Failed to create feed", cause: err });
   }
 });

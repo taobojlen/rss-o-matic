@@ -44,6 +44,6 @@ export default defineEventHandler(async (event) => {
     return xml;
   } catch (err: unknown) {
     console.error(`Feed ${id} fetch error:`, err);
-    return new Response("Failed to fetch source page", { status: 502 });
+    throw createError({ statusCode: 502, statusMessage: "Failed to fetch source page", cause: err });
   }
 });

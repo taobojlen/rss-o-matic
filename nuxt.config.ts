@@ -55,7 +55,7 @@ export default defineNuxtConfig({
     },
     sourcemaps: {
       enabled: true,
-      project: '131385', // Your project ID from PostHog settings https://app.posthog.com/settings/environment#variables
+      projectId: '131385', // Your project ID from PostHog settings https://app.posthog.com/settings/environment#variables
       personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY ?? '', // Your personal API key from PostHog settings https://app.posthog.com/settings/user-api-keys (requires organization:read and error_tracking:write scopes)
       releaseName: 'rss-o-matic' // Optional: defaults to git repository name
     },
