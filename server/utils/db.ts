@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import type { FeedRecord } from "./schema";
 
@@ -35,6 +35,23 @@ export async function getFeedByUrl(url: string): Promise<FeedRecord | null> {
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };
+}
+
+export async function getRecentFeeds(limit: number = 5): Promise<FeedRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.feeds)
+    .orderBy(desc(schema.feeds.createdAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
+    id: row.id,
+    url: row.url,
+    title: row.title,
+    parser_config: row.parserConfig,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  }));
 }
 
 export async function getFeed(id: string): Promise<FeedRecord | null> {
