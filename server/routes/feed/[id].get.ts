@@ -28,7 +28,15 @@ export default defineEventHandler(async (event) => {
   try {
     const html = await fetchPage(feed.url);
     const config: ParserConfig = JSON.parse(feed.parser_config);
-    const extracted = parseHtml(html, config, feed.url);
+    let extracted = parseHtml(html, config, feed.url);
+
+    // Stale selector detection: 0 items means selectors likely broke
+    if (extracted.items.length === 0) {
+      const result = await attemptRegeneration(feed, html);
+      if (result.status === "success" && result.extracted) {
+        extracted = result.extracted;
+      }
+    }
 
     const host = getRequestHeader(event, "host") || "localhost";
     const proto = getRequestHeader(event, "x-forwarded-proto") || "https";

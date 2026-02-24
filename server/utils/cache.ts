@@ -2,7 +2,6 @@ import { kv } from '@nuxthub/kv'
 import type { ExtractedFeed } from './schema'
 
 const CACHE_TTL_SECONDS = 15 * 60; // 15 minutes
-
 export async function getCachedFeed(
   feedId: string
 ): Promise<string | null> {
@@ -29,4 +28,8 @@ export async function setCachedPreview(
   preview: ExtractedFeed
 ): Promise<void> {
   await kv.set(`preview:${feedId}`, preview);
+}
+
+export async function invalidateCachedFeed(feedId: string): Promise<void> {
+  await kv.del(`feed:${feedId}`);
 }
