@@ -3,11 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   modules: ['@nuxthub/core'],
   hub: {
-    db: {
-      dialect: 'sqlite',
-      driver: 'd1',
-      connection: { databaseId: '31ed3c46-030e-4448-b4ad-fe38e055cedf' },
-    },
+    db: 'sqlite',
     kv: true,
   },
   runtimeConfig: {
