@@ -166,4 +166,69 @@ describe("validateParserConfig", () => {
       })
     ).toThrow("html must be a boolean");
   });
+
+  describe("CSS selector validation", () => {
+    it("accepts valid CSS selectors including partial class matches", () => {
+      const config = {
+        itemSelector: "[class*='PublicationList'][class*='list'] > li",
+        feed: { title: "Feed" },
+        fields: {
+          title: { selector: "[class*='title']" },
+          link: { selector: "a", attr: "href" },
+        },
+      };
+      expect(validateParserConfig(config)).toEqual(config);
+    });
+
+    it("accepts structural selectors", () => {
+      const config = {
+        itemSelector: "main section ul > li",
+        feed: { title: "Feed" },
+        fields: {
+          title: { selector: "span" },
+          link: { selector: "a", attr: "href" },
+        },
+      };
+      expect(validateParserConfig(config)).toEqual(config);
+    });
+
+    it("throws on invalid CSS in itemSelector", () => {
+      expect(() =>
+        validateParserConfig({
+          itemSelector: "ul > li[invalid=",
+          feed: { title: "T" },
+          fields: {
+            title: { selector: "h2" },
+            link: { selector: "a", attr: "href" },
+          },
+        })
+      ).toThrow("invalid CSS selector");
+    });
+
+    it("throws on invalid CSS in field selector", () => {
+      expect(() =>
+        validateParserConfig({
+          itemSelector: "li",
+          feed: { title: "T" },
+          fields: {
+            title: { selector: "h2 )" },
+            link: { selector: "a", attr: "href" },
+          },
+        })
+      ).toThrow("invalid CSS selector");
+    });
+
+    it("throws on XPath pipe syntax in selector", () => {
+      expect(() =>
+        validateParserConfig({
+          itemSelector: "li",
+          feed: { title: "T" },
+          fields: {
+            title: { selector: "span | div" },
+            link: { selector: "a", attr: "href" },
+          },
+        })
+      ).toThrow("invalid CSS selector");
+    });
+  });
 });
