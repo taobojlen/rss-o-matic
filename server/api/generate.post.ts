@@ -1,5 +1,21 @@
 import { nanoid } from "nanoid";
 
+function friendlyFetchError(status: number): string {
+  if (status === 403) {
+    return "No dice — that website slammed the door on us! Some sites don't take kindly to automated visitors.";
+  }
+  if (status === 404) {
+    return "We knocked, but nobody's home! Double-check that URL and give it another whirl.";
+  }
+  if (status === 429) {
+    return "Whoa there — that website says we're coming in too hot! Give it a minute and try again.";
+  }
+  if (status >= 500) {
+    return "Looks like that website blew a fuse on their end! Try again later once they've got things patched up.";
+  }
+  return `That website gave us the cold shoulder (HTTP ${status}). Try a different URL!`;
+}
+
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ url?: string }>(event);
 
@@ -116,7 +132,66 @@ export default defineEventHandler(async (event) => {
     if (err && typeof err === "object" && "statusCode" in err) {
       throw err;
     }
+
+    const message =
+      err instanceof Error ? err.message : String(err);
     console.error("Generate error:", err);
+
+    // fetchPage throws "HTTP {status} {statusText}" for non-ok responses
+    const httpMatch = message.match(/^HTTP (\d{3})\b/);
+    if (httpMatch) {
+      const status = Number(httpMatch[1]);
+      throw createError({
+        statusCode: 502,
+        statusMessage: friendlyFetchError(status),
+        cause: err,
+      });
+    }
+
+    // DNS / connection / timeout errors from fetch
+    const causeCode =
+      err instanceof Error &&
+      err.cause &&
+      typeof err.cause === "object" &&
+      "code" in err.cause
+        ? (err.cause as { code: string }).code
+        : undefined;
+
+    if (causeCode === "ENOTFOUND") {
+      throw createError({
+        statusCode: 422,
+        statusMessage:
+          "Hmm, that address doesn't exist — are you sure you typed it right?",
+        cause: err,
+      });
+    }
+
+    if (
+      causeCode === "ECONNREFUSED" ||
+      causeCode === "ECONNRESET" ||
+      causeCode === "EHOSTUNREACH" ||
+      message === "fetch failed"
+    ) {
+      throw createError({
+        statusCode: 502,
+        statusMessage:
+          "We couldn't reach that website. It might be down — try again later!",
+        cause: err,
+      });
+    }
+
+    if (
+      (err instanceof DOMException && err.name === "AbortError") ||
+      causeCode === "UND_ERR_CONNECT_TIMEOUT"
+    ) {
+      throw createError({
+        statusCode: 504,
+        statusMessage:
+          "That website took too long to respond — it might be asleep at the switch!",
+        cause: err,
+      });
+    }
+
     throw createError({ statusCode: 500, statusMessage: "Failed to create feed", cause: err });
   }
 });

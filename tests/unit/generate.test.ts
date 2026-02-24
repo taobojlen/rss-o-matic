@@ -148,6 +148,118 @@ describe("POST /api/generate", () => {
     expect(mockSetCachedPreview).toHaveBeenCalledWith("testid123456", preview);
   });
 
+  it("throws H3 error with status 502 when fetchPage fails with HTTP error", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockRejectedValue(new Error("HTTP 403 Forbidden"));
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    expect(mockCreateError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 502,
+      })
+    );
+  });
+
+  it("shows friendly error message when site returns 403", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockRejectedValue(new Error("HTTP 403 Forbidden"));
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    const call = mockCreateError.mock.calls.find(
+      (c: any[]) => c[0]?.statusCode === 502
+    );
+    expect(call).toBeDefined();
+    expect(call![0].statusMessage).toContain("slammed the door");
+  });
+
+  it("shows friendly error message when site returns 404", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockRejectedValue(new Error("HTTP 404 Not Found"));
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    const call = mockCreateError.mock.calls.find(
+      (c: any[]) => c[0]?.statusCode === 502
+    );
+    expect(call).toBeDefined();
+    expect(call![0].statusMessage).toContain("nobody's home");
+  });
+
+  it("shows friendly error message for DNS failures", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://fooooo49284209.com/" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    const fetchErr = new TypeError("fetch failed");
+    (fetchErr as any).cause = Object.assign(
+      new Error("getaddrinfo ENOTFOUND fooooo49284209.com"),
+      { code: "ENOTFOUND" }
+    );
+    mockFetchPage.mockRejectedValue(fetchErr);
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    const call = mockCreateError.mock.calls.find(
+      (c: any[]) => c[0]?.statusCode === 422
+    );
+    expect(call).toBeDefined();
+    expect(call![0].statusMessage).toMatch(/doesn.t exist/i);
+  });
+
+  it("shows friendly error message for connection refused", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    const fetchErr = new TypeError("fetch failed");
+    (fetchErr as any).cause = Object.assign(
+      new Error("connect ECONNREFUSED 127.0.0.1:443"),
+      { code: "ECONNREFUSED" }
+    );
+    mockFetchPage.mockRejectedValue(fetchErr);
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    const call = mockCreateError.mock.calls.find(
+      (c: any[]) => c[0]?.statusCode === 502
+    );
+    expect(call).toBeDefined();
+    expect(call![0].statusMessage).toMatch(/couldn.t reach/i);
+  });
+
+  it("shows friendly error message for timeout", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockRejectedValue(new DOMException("The operation was aborted", "AbortError"));
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+
+    await expect(handler({} as any)).rejects.toThrow();
+    const call = mockCreateError.mock.calls.find(
+      (c: any[]) => c[0]?.statusCode === 504
+    );
+    expect(call).toBeDefined();
+    expect(call![0].statusMessage).toMatch(/took too long/i);
+  });
+
   it("fetches page and generates config for new URLs", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
     mockGetFeedByUrl.mockResolvedValue(null);
