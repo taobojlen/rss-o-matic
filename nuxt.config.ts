@@ -3,8 +3,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   modules: ['@nuxthub/core'],
   hub: {
-    db: 'sqlite',
-    kv: true,
+    db: {
+      dialect: 'sqlite',
+      driver: 'd1',
+      connection: { databaseId: '31ed3c46-030e-4448-b4ad-fe38e055cedf' },
+    },
+    kv: {
+      driver: 'cloudflare-kv-binding',
+      namespaceId: '405d94875ef249ff866a5314e032ff8f',
+    },
   },
   runtimeConfig: {
     openrouterApiKey: '',
@@ -20,4 +27,7 @@ export default defineNuxtConfig({
     },
   },
   css: ['~/assets/css/main.css'],
+  nitro: {
+    preset: 'cloudflare_module',
+  },
 })

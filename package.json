@@ -6,7 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
-    "deploy": "nuxthub deploy",
+    "deploy": "nuxt build && npx wrangler deploy",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {

@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rss-o-matic",
+  "compatibility_date": "2025-02-24",
+  "vars": {
+    "NUXT_OPENROUTER_MODEL": "anthropic/claude-sonnet-4"
+  }
+}
