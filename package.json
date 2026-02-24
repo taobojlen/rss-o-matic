@@ -6,24 +6,25 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
-    "deploy": "rm -rf .nuxt && nuxt build && npx wrangler d1 migrations apply DB_MIGRATIONS --remote --config wrangler.jsonc && npx wrangler deploy --config .output/server/wrangler.json",
+    "deploy": "rm -rf .nuxt && nuxt build && ./scripts/upload-sourcemaps.sh && npx wrangler d1 migrations apply DB_MIGRATIONS --remote --config wrangler.jsonc && npx wrangler deploy --config .output/server/wrangler.json",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
     "@nuxthub/core": "^0.10.6",
-    "@posthog/nuxt": "^1.5.58",
     "cheerio": "^1.2.0",
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
     "nanoid": "^5.1.6",
     "nuxt": "^4.3.1",
-    "posthog-js": "^1.352.0",
+    "posthog-js": "^1.352.1",
+    "posthog-node": "^5.24.17",
     "unstorage": "^1.17.4",
     "vue": "^3.5.28",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@posthog/cli": "^0.6.1",
     "typescript": "^5.9.3",
     "wrangler": "^4.67.0"
   }
