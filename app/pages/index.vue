@@ -37,6 +37,7 @@ const url = ref('')
 const step = ref<AppStep>('idle')
 const data = ref<GenerateResult | null>(null)
 const errorMessage = ref('')
+const errorStatusCode = ref<number | null>(null)
 const copied = ref(false)
 const origin = ref('')
 
@@ -62,6 +63,7 @@ async function handleSubmit() {
   } catch (err: any) {
     errorMessage.value =
       err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
+    errorStatusCode.value = err?.data?.statusCode || err?.statusCode || null
     step.value = 'error'
   }
 }
@@ -76,11 +78,28 @@ function handleCopy() {
   }, 2000)
 }
 
+const githubIssueUrl = computed(() => {
+  const title = `Feed generation failed for ${url.value.trim()}`
+  const body = [
+    '**URL:** `' + url.value.trim() + '`',
+    '**Error:** ' + errorMessage.value,
+    errorStatusCode.value ? '**Status code:** ' + errorStatusCode.value : '',
+    '',
+    '---',
+    '*Any additional context you can provide (e.g. whether it worked before) would be helpful!*',
+  ]
+    .filter(Boolean)
+    .join('\n')
+  const params = new URLSearchParams({ title, body, labels: 'bug' })
+  return `https://github.com/taobojlen/rss-o-matic/issues/new?${params}`
+})
+
 function handleReset() {
   step.value = 'idle'
   url.value = ''
   data.value = null
   errorMessage.value = ''
+  errorStatusCode.value = null
   copied.value = false
 }
 </script>
@@ -173,9 +192,14 @@ function handleReset() {
 
     <div v-if="step === 'error'" class="error-box">
       <p>{{ errorMessage }}</p>
-      <button class="btn btn-primary" @click="handleReset">
-        Try Again
-      </button>
+      <div class="error-actions">
+        <button class="btn btn-primary" @click="handleReset">
+          Try Again
+        </button>
+        <a :href="githubIssueUrl" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          Report Issue
+        </a>
+      </div>
     </div>
 
     <section v-if="recentFeeds?.length" class="recent-feeds">
