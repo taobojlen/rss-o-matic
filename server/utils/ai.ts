@@ -60,15 +60,19 @@ The page URL is: ${url}
 
 Analyze the HTML below and identify the repeating pattern of content items (articles, posts, links, products, etc.).
 
+Example: for a page with <ul class="PostList-module__abc123__list"><li class="PostList-module__abc123__item"><a href="/post/1"><span>Title</span><time>Jan 1</time></a></li>...</ul>, the output should be:
+{"feed":{"title":"My Blog"},"itemSelector":"[class*='PostList'][class*='list'] > li","fields":{"title":{"selector":"span"},"link":{"selector":"a","attr":"href"},"pubDate":{"selector":"time"}}}
+
 Rules:
-1. itemSelector MUST match multiple elements on the page (the repeating items).
-2. All selectors in fields are RELATIVE to each matched item element.
-3. For links, always use { "selector": "a", "attr": "href" } or similar to get the href attribute.
-4. For images, use { "selector": "img", "attr": "src" } or similar.
-5. For dates, look for <time> elements with datetime attributes: { "selector": "time", "attr": "datetime" }.
-6. If a field is not available on the page, omit it from fields.
-7. Prefer specific selectors (classes, data attributes) over generic tag selectors.
-8. feed.title can be a literal string if there's no good selector.
+1. itemSelector MUST match multiple elements (the repeating items).
+2. All field selectors are RELATIVE to each matched item.
+3. For links: { "selector": "a", "attr": "href" }. For images: { "selector": "img", "attr": "src" }. For dates: { "selector": "time" }.
+4. Omit optional fields that don't exist on the page.
+5. NEVER use full CSS class names that contain hashes or look auto-generated. CSS Modules classes like "Component-module__hash__element" change on every deploy and will break.
+6. Instead, use [class*='ComponentName'] partial matches to target the stable part of CSS class names. For example, for class="PublicationList-module-scss-module__KxYrHG__list", use [class*='PublicationList'][class*='list'].
+7. Each selector MUST be a single valid CSS selector. No pipes (|), no XPath.
+8. Keep selectors short and simple.
+9. feed.title should be a literal string.
 
 HTML:
 ${trimmedHtml}`;
@@ -101,7 +105,7 @@ export async function generateParserConfig(
       model,
       messages: [{ role: "user", content: prompt }],
       temperature: 0,
-      max_tokens: 2000,
+      max_tokens: 4000,
       provider: { require_parameters: true },
       response_format: {
         type: "json_schema",
@@ -133,7 +137,6 @@ export async function generateParserConfig(
     { url, model, durationMs, responseChars: content.length },
     "LLM response received"
   );
-
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);

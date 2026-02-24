@@ -1,4 +1,16 @@
+import * as cheerio from "cheerio";
 import type { ParserConfig } from "./schema";
+
+function validateCssSelector(selector: string, path: string): void {
+  try {
+    const $ = cheerio.load("<div></div>");
+    $(selector);
+  } catch {
+    throw new Error(
+      `${path} contains an invalid CSS selector: "${selector}"`
+    );
+  }
+}
 
 /**
  * Validate that a parsed JSON object conforms to the ParserConfig shape.
@@ -14,6 +26,7 @@ export function validateParserConfig(obj: unknown): ParserConfig {
   if (typeof config.itemSelector !== "string" || !config.itemSelector) {
     throw new Error("Missing or invalid itemSelector");
   }
+  validateCssSelector(config.itemSelector, "itemSelector");
 
   if (typeof config.feed !== "object" || config.feed === null) {
     throw new Error("Missing feed metadata");
@@ -57,6 +70,9 @@ function validateFieldSelector(val: unknown, path: string): void {
   const fs = val as Record<string, unknown>;
   if (typeof fs.selector !== "string") {
     throw new Error(`${path}.selector must be a string`);
+  }
+  if (fs.selector) {
+    validateCssSelector(fs.selector, path);
   }
   if (fs.attr !== undefined && typeof fs.attr !== "string") {
     throw new Error(`${path}.attr must be a string if present`);
