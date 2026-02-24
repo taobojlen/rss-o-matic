@@ -26,9 +26,9 @@ interface UseGenerateProgressOptions {
 }
 
 export function useGenerateProgress(options?: UseGenerateProgressOptions) {
-  const fetchDelay = options?.fetchDelay ?? 3500;
-  const splineDelay = options?.splineDelay ?? 12000;
-  const rotateInterval = options?.rotateInterval ?? 5000;
+  const fetchDelay = options?.fetchDelay ?? 2000;
+  const splineDelay = options?.splineDelay ?? 5000;
+  const rotateInterval = options?.rotateInterval ?? 3500;
 
   const currentStep = ref<ProgressStep | null>(null);
   const completedSteps = ref(new Set<ProgressStep>());
