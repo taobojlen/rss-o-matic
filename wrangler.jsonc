@@ -3,6 +3,6 @@
   "name": "rss-o-matic",
   "compatibility_date": "2025-02-24",
   "vars": {
-    "NUXT_OPENROUTER_MODEL": "anthropic/claude-sonnet-4"
+    "NUXT_OPENROUTER_MODEL": "minimax/minimax-m2.5"
   }
 }
