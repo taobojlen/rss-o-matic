@@ -6,15 +6,15 @@
 
 body {
   font-family: 'Jost', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #e8e3d9;
-  /* Fine-grain noise texture — suggests a lightly worn metal surface */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.14'/%3E%3C/svg%3E");
+  background-color: #c2dad5;
+  /* Fine-grain noise — worn enamel surface texture */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.10'/%3E%3C/svg%3E");
   color: #2a2622;
   min-height: 100vh;
 }
 
 /* ============================================================
-   HEADER — Enamel-red top panel with crosshatch + gloss
+   HEADER — Cherry-red enamel top panel with crosshatch + gloss
    ============================================================ */
 .retro-header {
   background-color: #b82828;
@@ -84,7 +84,7 @@ body {
 .hero-description {
   text-align: center;
   font-size: 1.05rem;
-  color: #4a4540;
+  color: #3a4a48;
   line-height: 1.7;
   max-width: 520px;
   margin: 0 auto 2rem;
@@ -103,7 +103,7 @@ body {
   flex: 1;
   padding: 0.75rem 1rem;
   border: 2px solid;
-  border-color: #a09888 #c0b8a8 #c8c0b0 #a89880;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
   border-radius: 4px;
   background: #fefefe;
   color: #2a2622;
@@ -119,7 +119,7 @@ body {
 }
 
 .url-form input::placeholder {
-  color: #908878;
+  color: #7a9a94;
 }
 
 /* ============================================================
@@ -182,15 +182,15 @@ body {
 }
 
 .btn-secondary {
-  background: linear-gradient(180deg, #e0d8c8 0%, #ccc4b4 100%);
+  background: linear-gradient(180deg, #f5efe5 0%, #e8e0d4 100%);
   color: #3a3530;
-  border: 2px solid #a89880;
+  border: 2px solid #a8b8b4;
   border-bottom-width: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #e8e0d0 0%, #d4ccbc 100%);
+  background: linear-gradient(180deg, #faf5ec 0%, #ede5d9 100%);
 }
 
 .btn-secondary:active:not(:disabled) {
@@ -245,7 +245,7 @@ body {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 2.5px solid #c0b8a8;
+  border: 2.5px solid #a0c4be;
   border-top-color: #e05528;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -269,7 +269,7 @@ body {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: #c0b8a8;
+  background: #a0c4be;
   border-radius: 50%;
 }
 
@@ -280,7 +280,7 @@ body {
 }
 
 .progress-step.pending .step-label {
-  color: #908878;
+  color: #6a8882;
   font-weight: 400;
 }
 
@@ -301,16 +301,16 @@ body {
 .progress-hint {
   margin-top: 1.5rem;
   font-size: 0.8rem;
-  color: #908878;
+  color: #6a8882;
 }
 
 /* ============================================================
-   FEED URL BOX — Indicator-panel green with chrome trim
+   FEED URL BOX — Cream panel with green-tinted chrome trim
    ============================================================ */
 .feed-url-box {
-  background: #e8f0e0;
+  background: #faf4ea;
   border: 2px solid;
-  border-color: #88a880 #a0c098 #a8c8a0 #90b088;
+  border-color: #68a860 #88c080 #90c888 #78b070;
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -328,7 +328,7 @@ body {
 }
 
 /* ============================================================
-   ITEMS LIST — Recessed stamped-metal panels
+   ITEMS LIST — Cream recessed panels with chrome trim
    ============================================================ */
 .items-list {
   list-style: none;
@@ -337,10 +337,10 @@ body {
 .items-list li {
   padding: 1rem;
   border: 2px solid;
-  border-color: #b0a898 #c8c0b0 #d0c8b8 #b8b0a0;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
   border-radius: 4px;
   margin-bottom: 0.5rem;
-  background: #fefefe;
+  background: #faf4ea;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
@@ -350,7 +350,7 @@ body {
 }
 
 .items-list li h3 a {
-  color: #b83a18;
+  color: #c04020;
   text-decoration: none;
 }
 
@@ -360,12 +360,12 @@ body {
 
 .items-list li .meta {
   font-size: 0.8rem;
-  color: #908878;
+  color: #6a8882;
 }
 
 .items-list li .desc {
   font-size: 0.85rem;
-  color: #605850;
+  color: #4a5854;
   margin-top: 0.25rem;
 }
 
@@ -373,7 +373,7 @@ body {
    ERROR BOX
    ============================================================ */
 .error-box {
-  background: #fde8e0;
+  background: #faf4ea;
   border: 2px solid;
   border-color: #c08070 #d0a090 #d8a898 #c88878;
   border-radius: 4px;
@@ -402,9 +402,9 @@ a.btn {
    EXISTING FEED
    ============================================================ */
 .existing-feed-box {
-  background: #e8f0e0;
+  background: #faf4ea;
   border: 2px solid;
-  border-color: #88a880 #a0c098 #a8c8a0 #90b088;
+  border-color: #68a860 #88c080 #90c888 #78b070;
   border-radius: 4px;
   padding: 2rem;
   text-align: center;
@@ -431,7 +431,7 @@ a.btn {
 .existing-feed-item {
   background: #fefefe;
   border: 2px solid;
-  border-color: #88a880 #a0c098 #a8c8a0 #90b088;
+  border-color: #68a860 #88c080 #90c888 #78b070;
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 0.5rem;
@@ -493,7 +493,7 @@ a.btn {
    UNSUITABLE URL — Warning panel
    ============================================================ */
 .unsuitable-box {
-  background: #fff8e1;
+  background: #faf4ea;
   border: 2px solid;
   border-color: #c8a850 #d8c070 #e0c878 #d0b058;
   border-radius: 4px;
@@ -509,7 +509,7 @@ a.btn {
 }
 
 .unsuitable-hint {
-  color: #706050;
+  color: #5a5040;
   font-size: 0.85rem;
   margin-bottom: 1.5rem;
 }
@@ -523,26 +523,26 @@ a.btn {
 
 .config-toggle summary {
   cursor: pointer;
-  color: #908878;
+  color: #6a8882;
   font-size: 0.85rem;
 }
 
 .config-toggle pre {
   margin-top: 0.5rem;
-  background: #f0ebe0;
+  background: #f5efe5;
   border: 2px solid;
-  border-color: #b0a898 #c8c0b0 #d0c8b8 #b8b0a0;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
   border-radius: 4px;
   padding: 1rem;
   font-size: 0.8rem;
   overflow-x: auto;
-  color: #4a4540;
+  color: #3a4a48;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .section-label {
   font-size: 0.85rem;
-  color: #908878;
+  color: #6a8882;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -555,27 +555,26 @@ a.btn {
 }
 
 /* ============================================================
-   RETRO DIVIDERS — Industrial rivet on a seam line
+   RETRO DIVIDERS — Diamond on a seam line
    ============================================================ */
 .recent-feeds,
 .site-footer {
   position: relative;
-  border-top: 2px solid #c0b8a8;
+  border-top: 2px solid #a0c4be;
 }
 
 .recent-feeds::before,
 .site-footer::before {
-  content: '●';
+  content: '◆';
   position: absolute;
-  top: -0.5em;
+  top: -0.55em;
   left: 50%;
   transform: translateX(-50%);
-  background: #e8e3d9;
+  background: #c2dad5;
   padding: 0 0.75em;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   line-height: 1;
-  color: #a09888;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+  color: #7a9e96;
 }
 
 /* ============================================================
@@ -593,16 +592,16 @@ a.btn {
 .recent-feeds-list li {
   padding: 0.75rem 1rem;
   border: 2px solid;
-  border-color: #b0a898 #c8c0b0 #d0c8b8 #b8b0a0;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
   border-radius: 4px;
   margin-bottom: 0.5rem;
-  background: #fefefe;
+  background: #faf4ea;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .recent-feed-title {
   display: block;
-  color: #b83a18;
+  color: #c04020;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
@@ -615,7 +614,7 @@ a.btn {
 .recent-feed-source {
   display: block;
   font-size: 0.8rem;
-  color: #908878;
+  color: #6a8882;
   margin-top: 0.15rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -630,11 +629,11 @@ a.btn {
   padding-top: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: #908878;
+  color: #6a8882;
 }
 
 .site-footer a {
-  color: #b83a18;
+  color: #c04020;
   text-decoration: none;
   font-weight: 600;
 }
