@@ -11,33 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install
-      - run: pnpm build
-        env:
-          NITRO_PRESET: cloudflare_module
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            .output/
-            .nuxt/
-
   deploy-production:
     name: Deploy to production
     runs-on: ubuntu-latest
-    needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
     steps:
@@ -50,9 +26,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-output
+      - run: pnpm build
       - name: Upload sourcemaps to PostHog
         run: ./scripts/upload-sourcemaps.sh
         env:
@@ -72,7 +46,6 @@ jobs:
   deploy-preview:
     name: Deploy preview
     runs-on: ubuntu-latest
-    needs: build
     if: github.event_name == 'pull_request'
     environment: preview
     permissions:
@@ -87,9 +60,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-output
+      - run: pnpm build
       - name: Apply D1 migrations (preview)
         run: npx wrangler d1 migrations apply DB --remote --env preview --config wrangler.jsonc
         env:
