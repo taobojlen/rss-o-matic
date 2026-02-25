@@ -88,7 +88,7 @@ async function handleSubmit() {
       progress.finish()
       generatedData.value = res
       // Brief pause so the user sees the "done" checkmark
-      await new Promise(resolve => setTimeout(resolve, 600))
+      await new Promise(resolve => setTimeout(resolve, 1500))
       step.value = 'preview'
       refreshRecentFeeds()
     }
