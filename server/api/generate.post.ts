@@ -77,27 +77,57 @@ export default defineEventHandler(async (event) => {
     // 3. Trim HTML for AI
     const trimmed = trimHtml(html);
 
-    // 4. Generate parser config via AI
-    const aiResult = await generateParserConfig(
-      trimmed,
-      normalized,
-      config.openrouterApiKey,
-      config.openrouterModel
-    );
+    // 4–6. Generate parser config via AI, with retry on failure
+    const MAX_SELECTOR_RETRIES = 2;
+    let parserConfig!: Parameters<typeof parseHtml>[1];
+    let preview!: ReturnType<typeof parseHtml>;
+    const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
 
-    // 5. Check if AI flagged the page as unsuitable
-    if (aiResult.unsuitable) {
-      capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
-      return {
-        type: "unsuitable" as const,
-        reason: aiResult.reason,
-      };
+    for (let attempt = 0; attempt <= MAX_SELECTOR_RETRIES; attempt++) {
+      let aiResult;
+      try {
+        aiResult = await generateParserConfig(
+          trimmed,
+          normalized,
+          config.openrouterApiKey,
+          config.openrouterModel,
+          conversationHistory.length > 0 ? conversationHistory : undefined
+        );
+      } catch (err) {
+        if (attempt < MAX_SELECTOR_RETRIES && err instanceof Error) {
+          capturePostHogEvent(event, "selector_retry", { url: normalized, attempt: attempt + 1, reason: "invalid_css" });
+          conversationHistory.push(
+            { role: "user", content: `Your previous configuration was invalid: ${err.message}. Please try again with valid CSS selectors.` }
+          );
+          continue;
+        }
+        throw err;
+      }
+
+      if (aiResult.unsuitable) {
+        capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
+        return {
+          type: "unsuitable" as const,
+          reason: aiResult.reason,
+        };
+      }
+
+      parserConfig = aiResult.config;
+      preview = parseHtml(html, parserConfig, normalized);
+
+      if (preview.items.length > 0) {
+        break;
+      }
+
+      if (attempt < MAX_SELECTOR_RETRIES) {
+        capturePostHogEvent(event, "selector_retry", { url: normalized, attempt: attempt + 1, reason: "no_items" });
+        conversationHistory.push(
+          { role: "assistant", content: JSON.stringify(parserConfig) },
+          { role: "user", content: `Your configuration produced 0 results when applied to the page HTML. The itemSelector "${parserConfig.itemSelector}" did not match any elements, or the matched elements were missing required fields (title and link). Please analyze the HTML more carefully and try different CSS selectors.` }
+        );
+      }
     }
 
-    const parserConfig = aiResult.config;
-
-    // 6. Validate by running the parser against the actual HTML
-    const preview = parseHtml(html, parserConfig, normalized);
     if (preview.items.length === 0) {
       throw createError({
         statusCode: 422,

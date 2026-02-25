@@ -93,7 +93,8 @@ export async function generateParserConfig(
   trimmedHtml: string,
   url: string,
   apiKey: string,
-  model: string
+  model: string,
+  priorMessages?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<AiParserResult> {
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set in environment");
 
@@ -114,9 +115,14 @@ export async function generateParserConfig(
   );
   const start = Date.now();
 
+  const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+    { role: "user", content: prompt },
+    ...(priorMessages ?? []),
+  ];
+
   const completion = await client.chat.completions.create({
     model,
-    messages: [{ role: "user", content: prompt }],
+    messages,
     temperature: 0,
     max_tokens: 4000,
     response_format: {

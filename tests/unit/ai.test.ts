@@ -233,6 +233,49 @@ describe("generateParserConfig", () => {
     expect(params.messages[0].content).toContain("https://example.com/blog");
   });
 
+  it("appends priorMessages after the initial prompt", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    const priorMessages = [
+      { role: "assistant" as const, content: '{"itemSelector":".bad"}' },
+      { role: "user" as const, content: "That didn't work, try again." },
+    ];
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model",
+      priorMessages
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.messages).toHaveLength(3);
+    expect(params.messages[0].role).toBe("user");
+    expect(params.messages[0].content).toContain("https://example.com");
+    expect(params.messages[1]).toEqual({ role: "assistant", content: '{"itemSelector":".bad"}' });
+    expect(params.messages[2]).toEqual({ role: "user", content: "That didn't work, try again." });
+  });
+
+  it("sends single message when no priorMessages", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.messages).toHaveLength(1);
+    expect(params.messages[0].role).toBe("user");
+  });
+
   it("passes PostHog tracking params", async () => {
     mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
