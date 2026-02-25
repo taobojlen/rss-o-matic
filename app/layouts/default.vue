@@ -19,7 +19,7 @@
         Generate from URL
       </NuxtLink>
       <NuxtLink to="/newsletter" class="tab-btn" :class="{ active: $route.path === '/newsletter' }">
-        Newsletter to RSS
+        Newsletter to Atom
       </NuxtLink>
     </div>
 
