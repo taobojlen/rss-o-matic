@@ -407,6 +407,67 @@ describe("POST /api/generate", () => {
     expect(mockGenerateParserConfig).toHaveBeenCalledTimes(3);
   });
 
+  it("prefers snapshot when selectors find only 1 item and page is snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Some content</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Some content</main>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "main", fields: { title: { selector: "h1" }, link: { selector: "a", attr: "href" } }, feed: { title: "Updates" } },
+      snapshotSuitable: true,
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+    mockParseHtml.mockReturnValue({
+      title: "Updates",
+      description: "",
+      link: "https://example.com/updates",
+      items: [{ title: "Some content", link: "https://example.com/updates" }],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: expect.any(String),
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("creates selector feed normally when only 1 item but not snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><article>Post</article></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<article>Post</article>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "article", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
+      snapshotSuitable: false,
+    });
+    mockParseHtml.mockReturnValue({
+      title: "Blog",
+      description: "",
+      link: "https://example.com/blog",
+      items: [{ title: "First Post", link: "https://example.com/blog/first" }],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result.type).toBe("generated");
+    expect(mockSaveFeed).toHaveBeenCalled();
+  });
+
   it("skips feed detection for URLs already in DB", async () => {
     const existingFeed = {
       id: "existingId123",

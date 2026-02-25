@@ -134,7 +134,24 @@ export default defineEventHandler(async (event) => {
       parserConfig = aiResult.config;
       preview = parseHtml(html, parserConfig, normalized);
 
-      if (preview.items.length > 0) {
+      if (preview.items.length > 1) {
+        break;
+      }
+
+      // A single matched item + snapshotSuitable likely means the AI matched
+      // the whole content block as one "item" — snapshot monitoring is better
+      if (preview.items.length === 1 && lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
+        capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+        return {
+          type: "snapshot_available" as const,
+          reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
+          contentSelector: lastSnapshotInfo.contentSelector,
+          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+        };
+      }
+
+      // 1 item without snapshot option is still a valid (if small) feed
+      if (preview.items.length === 1) {
         break;
       }
 
