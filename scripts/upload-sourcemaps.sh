@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-set -a
-source "${BASH_SOURCE[0]%/*}/../.env"
-set +a
+ENV_FILE="${BASH_SOURCE[0]%/*}/../.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
 
 WRANGLER_CONFIG=".output/server/wrangler.json"
 WRANGLER_BUNDLE=".output/wrangler-bundle"
