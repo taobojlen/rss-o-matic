@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 
-const EMAIL_DOMAIN = "inbox.rss-o-matic.com";
+const EMAIL_DOMAIN = "rss-o-matic.com";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
