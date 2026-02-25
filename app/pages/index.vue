@@ -279,7 +279,7 @@ function handleReset() {
         Try submitting the blog index or news listing page instead.
       </p>
       <div class="error-actions">
-        <button class="btn btn-primary" @click="handleReset">
+        <button class="btn btn-secondary" @click="handleReset">
           Try Another URL
         </button>
         <a :href="unsuitableIssueUrl" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
