@@ -18,7 +18,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'RSS-O-Matic — Generate RSS feeds from any website',
+      title: 'RSS-O-Matic — Generate Atom feeds from any website',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },

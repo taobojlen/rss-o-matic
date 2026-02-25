@@ -59,7 +59,7 @@ function handleReset() {
 <template>
   <p v-if="step === 'form' || step === 'creating'" class="hero-description">
     Got a favorite newsletter stuck in your inbox? Give it a name and we'll
-    set up a private mailbox that converts every issue into an RSS feed.
+    set up a private mailbox that converts every issue into an Atom feed.
   </p>
 
   <form
@@ -89,7 +89,7 @@ function handleReset() {
     <h2 class="newsletter-result-heading">Your inbox is ready!</h2>
     <p class="newsletter-result-intro">
       Subscribe to newsletters using this email address. Each incoming issue
-      will appear in your RSS feed automatically.
+      will appear in your Atom feed automatically.
     </p>
 
     <div class="newsletter-field">
@@ -106,7 +106,7 @@ function handleReset() {
     </div>
 
     <div class="newsletter-field">
-      <label class="newsletter-field-label">RSS Feed URL</label>
+      <label class="newsletter-field-label">Atom Feed URL</label>
       <div class="feed-url-box">
         <code>{{ origin }}{{ result.feedUrl }}</code>
         <button
