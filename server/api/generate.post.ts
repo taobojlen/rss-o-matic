@@ -43,7 +43,8 @@ export default defineEventHandler(async (event) => {
         return {
           type: "generated" as const,
           feedId: existing.id,
-          feedUrl: `/feed/${existing.id}.xml`,
+          feedUrl: `/feed/${existing.id}.atom`,
+        rssUrl: `/feed/${existing.id}.rss`,
           preview: cachedPreview,
           parserConfig,
         };
@@ -55,7 +56,8 @@ export default defineEventHandler(async (event) => {
       return {
         type: "generated" as const,
         feedId: existing.id,
-        feedUrl: `/feed/${existing.id}.xml`,
+        feedUrl: `/feed/${existing.id}.atom`,
+        rssUrl: `/feed/${existing.id}.rss`,
         preview,
         parserConfig,
       };
@@ -194,12 +196,14 @@ export default defineEventHandler(async (event) => {
     await setCachedPreview(feedId, preview);
 
     // 8. Return preview
-    const feedUrl = `/feed/${feedId}.xml`;
+    const feedUrl = `/feed/${feedId}.atom`;
+    const rssUrl = `/feed/${feedId}.rss`;
     capturePostHogEvent(event, "feed_generated", { outcome: "created", url: normalized });
     return {
       type: "generated" as const,
       feedId,
       feedUrl,
+      rssUrl,
       preview,
       parserConfig,
     };

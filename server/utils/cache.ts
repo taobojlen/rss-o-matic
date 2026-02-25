@@ -3,17 +3,19 @@ import type { ExtractedFeed } from './schema'
 
 const CACHE_TTL_SECONDS = 15 * 60; // 15 minutes
 export async function getCachedFeed(
-  feedId: string
+  feedId: string,
+  format: string = "rss"
 ): Promise<string | null> {
-  const cached = await kv.get<string>(`feed:${feedId}`);
+  const cached = await kv.get<string>(`feed:${feedId}:${format}`);
   return cached ?? null;
 }
 
 export async function setCachedFeed(
   feedId: string,
-  xml: string
+  xml: string,
+  format: string = "rss"
 ): Promise<void> {
-  await kv.set(`feed:${feedId}`, xml, { ttl: CACHE_TTL_SECONDS });
+  await kv.set(`feed:${feedId}:${format}`, xml, { ttl: CACHE_TTL_SECONDS });
 }
 
 export async function getCachedPreview(
@@ -31,5 +33,8 @@ export async function setCachedPreview(
 }
 
 export async function invalidateCachedFeed(feedId: string): Promise<void> {
-  await kv.del(`feed:${feedId}`);
+  await Promise.all([
+    kv.del(`feed:${feedId}:rss`),
+    kv.del(`feed:${feedId}:atom`),
+  ]);
 }

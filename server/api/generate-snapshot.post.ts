@@ -32,7 +32,8 @@ export default defineEventHandler(async (event) => {
     return {
       type: "generated" as const,
       feedId: existing.id,
-      feedUrl: `/feed/${existing.id}.xml`,
+      feedUrl: `/feed/${existing.id}.atom`,
+      rssUrl: `/feed/${existing.id}.rss`,
       feedType: "snapshot" as const,
       preview: {
         title: existing.title || "Page Changes",
@@ -80,7 +81,8 @@ export default defineEventHandler(async (event) => {
       : contentText;
   await saveFeedItem(feedId, itemTitle, normalized, itemDescription, contentHash);
 
-  const feedUrl = `/feed/${feedId}.xml`;
+  const feedUrl = `/feed/${feedId}.atom`;
+  const rssUrl = `/feed/${feedId}.rss`;
   capturePostHogEvent(event, "feed_generated", {
     outcome: "snapshot_created",
     url: normalized,
@@ -90,6 +92,7 @@ export default defineEventHandler(async (event) => {
     type: "generated" as const,
     feedId,
     feedUrl,
+    rssUrl,
     feedType: "snapshot" as const,
     preview: {
       title: snapshotConfig.feedTitle,

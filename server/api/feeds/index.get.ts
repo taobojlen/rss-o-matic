@@ -4,7 +4,8 @@ export default defineEventHandler(async () => {
     id: feed.id,
     title: feed.title,
     url: feed.url,
-    feedUrl: `/feed/${feed.id}.xml`,
+    feedUrl: `/feed/${feed.id}.atom`,
+    rssUrl: `/feed/${feed.id}.rss`,
     createdAt: feed.created_at,
   }));
 });

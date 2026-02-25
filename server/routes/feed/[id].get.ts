@@ -1,14 +1,36 @@
 import type { ParserConfig, SnapshotConfig, ExtractedFeed } from "../../utils/schema";
 import { detectChange } from "../../utils/change-detector";
 
+type FeedFormat = "atom" | "rss";
+
+function parseIdAndFormat(raw: string): { id: string; format: FeedFormat } {
+  if (raw.endsWith(".atom")) {
+    return { id: raw.replace(/\.atom$/, ""), format: "atom" };
+  }
+  if (raw.endsWith(".rss") || raw.endsWith(".xml")) {
+    return { id: raw.replace(/\.(rss|xml)$/, ""), format: "rss" };
+  }
+  return { id: raw, format: "atom" };
+}
+
+function contentTypeForFormat(_format: FeedFormat): string {
+  // Must use application/xml so browsers render the XSL stylesheet
+  // instead of triggering a download (application/atom+xml or
+  // application/rss+xml cause browsers to download the file).
+  return "application/xml; charset=utf-8";
+}
+
+function extensionForFormat(format: FeedFormat): string {
+  return format === "atom" ? ".atom" : ".rss";
+}
+
 export default defineEventHandler(async (event) => {
-  let id = getRouterParam(event, "id");
-  if (!id) {
+  const raw = getRouterParam(event, "id");
+  if (!raw) {
     throw createError({ statusCode: 400, statusMessage: "Missing feed ID" });
   }
 
-  // Strip .xml suffix if present
-  id = id.replace(/\.xml$/, "");
+  const { id, format } = parseIdAndFormat(raw);
 
   const feed = await getFeed(id);
 
@@ -31,10 +53,10 @@ export default defineEventHandler(async (event) => {
   }
 
   // Check cache
-  const cached = await getCachedFeed(id);
+  const cached = await getCachedFeed(id, format);
   if (cached) {
     setResponseHeaders(event, {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": contentTypeForFormat(format),
       "Cache-Control": "public, max-age=900",
     });
     return cached;
@@ -45,7 +67,7 @@ export default defineEventHandler(async (event) => {
     const html = await fetchPage(feed.url);
 
     if (feed.type === "snapshot") {
-      return await serveSnapshotFeed(event, feed, html, id);
+      return await serveSnapshotFeed(event, feed, html, id, format);
     }
 
     const config: ParserConfig = JSON.parse(feed.parser_config);
@@ -61,13 +83,16 @@ export default defineEventHandler(async (event) => {
 
     const host = getRequestHeader(event, "host") || "localhost";
     const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
-    const selfUrl = `${proto}://${host}/feed/${id}.xml`;
-    const xml = generateRssXml(extracted, selfUrl);
+    const selfUrl = `${proto}://${host}/feed/${id}${extensionForFormat(format)}`;
+    const xml =
+      format === "atom"
+        ? generateAtomXml(extracted, selfUrl)
+        : generateRssXml(extracted, selfUrl);
 
-    await setCachedFeed(id, xml);
+    await setCachedFeed(id, xml, format);
 
     setResponseHeaders(event, {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": contentTypeForFormat(format),
       "Cache-Control": "public, max-age=900",
     });
     return xml;
@@ -81,7 +106,8 @@ async function serveSnapshotFeed(
   event: any,
   feed: { url: string; title: string | null; parser_config: string },
   html: string,
-  feedId: string
+  feedId: string,
+  format: FeedFormat
 ) {
   const config: SnapshotConfig = JSON.parse(feed.parser_config);
 
@@ -131,7 +157,7 @@ async function serveSnapshotFeed(
     }
   }
 
-  // Build RSS from stored items
+  // Build feed from stored items
   const items = await getFeedItems(feedId, 50);
   const extracted: ExtractedFeed = {
     title: config.feedTitle || feed.title || "Page Changes",
@@ -147,13 +173,16 @@ async function serveSnapshotFeed(
 
   const host = getRequestHeader(event, "host") || "localhost";
   const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
-  const selfUrl = `${proto}://${host}/feed/${feedId}.xml`;
-  const xml = generateRssXml(extracted, selfUrl);
+  const selfUrl = `${proto}://${host}/feed/${feedId}${extensionForFormat(format)}`;
+  const xml =
+    format === "atom"
+      ? generateAtomXml(extracted, selfUrl)
+      : generateRssXml(extracted, selfUrl);
 
-  await setCachedFeed(feedId, xml);
+  await setCachedFeed(feedId, xml, format);
 
   setResponseHeaders(event, {
-    "Content-Type": "application/xml; charset=utf-8",
+    "Content-Type": contentTypeForFormat(format),
     "Cache-Control": "public, max-age=900",
   });
   return xml;

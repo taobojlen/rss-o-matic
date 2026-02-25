@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
     id: feed.id,
     title: feed.title,
     emailAddress: feed.email_address,
-    feedUrl: `/feed/${feed.id}.xml`,
-    fullFeedUrl: `${proto}://${host}/feed/${feed.id}.xml`,
+    feedUrl: `/feed/${feed.id}.atom`,
+    fullFeedUrl: `${proto}://${host}/feed/${feed.id}.atom`,
     itemCount,
     createdAt: feed.created_at,
   };

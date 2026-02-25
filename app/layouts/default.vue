@@ -3,7 +3,7 @@
     <div class="retro-header-inner">
       <h1 class="retro-title">RSS-O-Matic</h1>
       <p class="retro-tagline">
-        <span class="tagline-burst">Instant Feeds for the Modern Reader</span>
+        <span class="tagline-burst">Atomic Feeds for the Modern Reader</span>
       </p>
     </div>
     <div class="price-tag">

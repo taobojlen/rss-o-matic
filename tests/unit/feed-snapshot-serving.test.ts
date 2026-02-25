@@ -12,6 +12,7 @@ const mockPruneSnapshots = vi.fn().mockResolvedValue(undefined);
 const mockPruneFeedItems = vi.fn().mockResolvedValue(undefined);
 const mockGetFeedItems = vi.fn();
 const mockGenerateRssXml = vi.fn(() => "<rss>xml</rss>");
+const mockGenerateAtomXml = vi.fn(() => "<feed>atom</feed>");
 const mockParseHtml = vi.fn();
 const mockAttemptRegeneration = vi.fn();
 const mockGetRouterParam = vi.fn();
@@ -35,6 +36,7 @@ vi.stubGlobal("pruneSnapshots", mockPruneSnapshots);
 vi.stubGlobal("pruneFeedItems", mockPruneFeedItems);
 vi.stubGlobal("getFeedItems", mockGetFeedItems);
 vi.stubGlobal("generateRssXml", mockGenerateRssXml);
+vi.stubGlobal("generateAtomXml", mockGenerateAtomXml);
 vi.stubGlobal("parseHtml", mockParseHtml);
 vi.stubGlobal("attemptRegeneration", mockAttemptRegeneration);
 vi.stubGlobal("getRouterParam", mockGetRouterParam);
@@ -59,12 +61,12 @@ const SNAPSHOT_FEED = {
 describe("GET /feed/[id] (snapshot feeds)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetRouterParam.mockReturnValue("snap123.xml");
+    mockGetRouterParam.mockReturnValue("snap123.rss");
     mockGetRequestHeader.mockReturnValue("localhost");
     mockGetCachedFeed.mockResolvedValue(null);
   });
 
-  it("serves empty RSS when snapshot feed has no items yet", async () => {
+  it("serves empty feed when snapshot feed has no items yet", async () => {
     mockGetFeed.mockResolvedValue(SNAPSHOT_FEED);
     mockFetchPage.mockResolvedValue(
       "<html><body><main>Initial content</main></body></html>"
@@ -84,9 +86,7 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
       }),
       expect.any(String)
     );
-    // Initial snapshot: no previous hash, so changed=false, no saveFeedItem
     expect(mockSaveFeedItem).not.toHaveBeenCalled();
-    // But saveSnapshot should NOT be called (no change detected, just baseline)
     expect(mockSaveSnapshot).not.toHaveBeenCalled();
   });
 
@@ -134,7 +134,6 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
   });
 
   it("does not create a new item when content has not changed", async () => {
-    // We need the hash to match, so we compute it ourselves
     const { hashContent, extractContentText } = await import(
       "~/server/utils/snapshot"
     );
@@ -177,7 +176,7 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
     expect(mockFetchPage).not.toHaveBeenCalled();
   });
 
-  it("passes stored items to RSS generator", async () => {
+  it("passes stored items to feed generator", async () => {
     const storedItems = [
       {
         id: 2,
@@ -221,5 +220,46 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
     expect(extractedArg.items).toHaveLength(2);
     expect(extractedArg.items[0].title).toBe("Update — Feb 1, 2024");
     expect(extractedArg.items[1].title).toBe("Update — Jan 1, 2024");
+  });
+
+  it("uses Atom generator when .atom extension is requested", async () => {
+    mockGetRouterParam.mockReturnValue("snap123.atom");
+    mockGetFeed.mockResolvedValue(SNAPSHOT_FEED);
+    mockFetchPage.mockResolvedValue(
+      "<html><body><main>Initial content</main></body></html>"
+    );
+    mockGetLatestSnapshot.mockResolvedValue(null);
+    mockGetFeedItems.mockResolvedValue([]);
+
+    const handler = await import("~/server/routes/feed/[id].get").then(
+      (m) => m.default
+    );
+    await handler({ context: {} } as any);
+
+    expect(mockGenerateAtomXml).toHaveBeenCalled();
+    expect(mockGenerateRssXml).not.toHaveBeenCalled();
+    expect(mockSetResponseHeaders).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        "Content-Type": "application/xml; charset=utf-8",
+      })
+    );
+  });
+
+  it("sets RSS content type for .rss extension", async () => {
+    mockGetFeed.mockResolvedValue(SNAPSHOT_FEED);
+    mockGetCachedFeed.mockResolvedValue("<rss>cached</rss>");
+
+    const handler = await import("~/server/routes/feed/[id].get").then(
+      (m) => m.default
+    );
+    await handler({ context: {} } as any);
+
+    expect(mockSetResponseHeaders).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        "Content-Type": "application/xml; charset=utf-8",
+      })
+    );
   });
 });

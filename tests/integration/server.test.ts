@@ -71,7 +71,7 @@ describe("server integration tests", async () => {
         expect(feed).toHaveProperty("url");
         expect(feed).toHaveProperty("feedUrl");
         expect(feed).toHaveProperty("createdAt");
-        expect(feed.feedUrl).toMatch(/^\/feed\/.+\.xml$/);
+        expect(feed.feedUrl).toMatch(/^\/feed\/.+\.atom$/);
       }
     });
   });
@@ -103,7 +103,7 @@ describe("server integration tests", async () => {
         expect(feed).toHaveProperty("id");
         expect(feed).toHaveProperty("url");
         expect(feed).toHaveProperty("feedUrl");
-        expect(feed.feedUrl).toMatch(/^\/feed\/.+\.xml$/);
+        expect(feed.feedUrl).toMatch(/^\/feed\/.+\.atom$/);
       }
     });
   });

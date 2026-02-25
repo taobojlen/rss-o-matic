@@ -55,7 +55,7 @@ describe("POST /api/generate-snapshot", () => {
     expect(result.type).toBe("generated");
     expect(result.feedType).toBe("snapshot");
     expect(result.feedId).toBe("snap12345678");
-    expect(result.feedUrl).toBe("/feed/snap12345678.xml");
+    expect(result.feedUrl).toBe("/feed/snap12345678.atom");
     expect(result.preview.title).toBe("Example Updates");
     // Should include an initial item in the preview
     expect(result.preview.items).toHaveLength(1);
