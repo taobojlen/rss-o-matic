@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Skip sourcemap upload for branch preview deployments
+if [ -n "${CF_PAGES_BRANCH:-}" ] && [ "$CF_PAGES_BRANCH" != "main" ]; then
+  echo "Skipping sourcemap upload for preview branch: $CF_PAGES_BRANCH"
+  exit 0
+fi
+
 ENV_FILE="${BASH_SOURCE[0]%/*}/../.env"
 if [ -f "$ENV_FILE" ]; then
   set -a

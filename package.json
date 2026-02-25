@@ -24,6 +24,7 @@
     "nanoid": "^5.1.6",
     "nuxt": "^4.3.1",
     "openai": "^6.22.0",
+    "postal-mime": "^2.7.3",
     "posthog-js": "^1.352.1",
     "posthog-node": "^5.24.17",
     "unstorage": "^1.17.4",
