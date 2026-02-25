@@ -300,7 +300,7 @@ function handleReset() {
         Preview ({{ generatedData.preview.items.length }} items from "{{ generatedData.preview.title }}")
       </p>
       <ul class="items-list">
-        <li v-for="(item, i) in generatedData.preview.items.slice(0, 10)" :key="i">
+        <li v-for="(item, i) in generatedData.preview.items.slice(0, 5)" :key="i">
           <h3>
             <a :href="item.link" target="_blank" rel="noopener noreferrer">
               {{ item.title }}
