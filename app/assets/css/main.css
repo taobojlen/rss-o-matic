@@ -84,7 +84,7 @@ body {
 .hero-description {
   text-align: center;
   font-size: 1.05rem;
-  color: #3a4a48;
+  color: #2a3530;
   line-height: 1.7;
   max-width: 520px;
   margin: 0 auto 2rem;
@@ -246,7 +246,7 @@ body {
   width: 20px;
   height: 20px;
   border: 2.5px solid #a0c4be;
-  border-top-color: #d4a820;
+  border-top-color: #18665c;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -542,7 +542,7 @@ a.btn {
 
 .section-label {
   font-size: 0.85rem;
-  color: #6a8882;
+  color: #2a3a38;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
