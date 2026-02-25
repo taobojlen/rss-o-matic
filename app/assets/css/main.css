@@ -592,12 +592,16 @@ a.btn {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
+  width: 120%;
+  margin-left: -10%;
 }
 
 @media (max-width: 600px) {
   .feeds-columns {
     grid-template-columns: 1fr;
     gap: 2rem;
+    width: 100%;
+    margin-left: 0;
   }
 }
 
