@@ -169,6 +169,11 @@ function handleReset() {
         <span class="tagline-burst">Instant Feeds for the Modern Reader</span>
       </p>
     </div>
+    <div class="price-tag">
+      <span class="price-tag-hole" />
+      <span class="price-tag-label">Price</span>
+      <span class="price-tag-amount">$0.00</span>
+    </div>
   </header>
 
   <div id="root">
