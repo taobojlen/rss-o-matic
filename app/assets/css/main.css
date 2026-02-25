@@ -101,6 +101,7 @@ body {
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s, color 0.15s;
 }
 
