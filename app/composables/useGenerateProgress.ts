@@ -38,10 +38,10 @@ export function useGenerateProgress(options?: UseGenerateProgressOptions) {
   let splineTimer: ReturnType<typeof setTimeout> | null = null;
   let rotateTimer: ReturnType<typeof setInterval> | null = null;
 
-  function pickSlowMessage() {
+  function pickSlowMessage(): string {
     const current = analyzingLabel.value;
     const candidates = SLOW_MESSAGES.filter((m) => m !== current);
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    return candidates[Math.floor(Math.random() * candidates.length)] ?? SLOW_MESSAGES[0]!;
   }
 
   function clearTimers() {

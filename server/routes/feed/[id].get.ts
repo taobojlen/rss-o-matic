@@ -229,8 +229,8 @@ async function serveNewsletterFeed(
 
   const xml =
     format === "atom"
-      ? generateAtomXml(extracted, selfUrl)
-      : generateRssXml(extracted, selfUrl);
+      ? generateAtomXml(extracted, selfUrl, baseUrl)
+      : generateRssXml(extracted, selfUrl, baseUrl);
 
   await setCachedFeed(id, xml, format);
 
