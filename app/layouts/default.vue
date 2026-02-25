@@ -18,7 +18,7 @@
       <NuxtLink to="/" class="tab-btn" :class="{ active: $route.path === '/' }">
         Generate from URL
       </NuxtLink>
-      <NuxtLink to="/newsletter" class="tab-btn" :class="{ active: $route.path === '/newsletter' }">
+      <NuxtLink to="/newsletter" class="tab-btn" :class="{ active: $route.path === '/newsletter' || $route.path.startsWith('/newsletters/') }">
         Newsletter to Atom
       </NuxtLink>
     </div>
