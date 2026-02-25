@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const host = getRequestHeader(event, "host") || "localhost";
   const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
-  const feedUrl = `/feed/${feedId}.xml`;
+  const feedUrl = `/feed/${feedId}.atom`;
 
   return {
     id: feedId,
