@@ -33,9 +33,17 @@ interface RecentFeed {
   createdAt: string
 }
 
+interface PopularFeed {
+  id: string
+  title: string | null
+  url: string
+  feedUrl: string
+}
+
 type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'error'
 
 const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
+const { data: popularFeeds } = await useFetch<PopularFeed[]>('/api/feeds/popular')
 
 const url = ref('')
 const step = ref<AppStep>('idle')
@@ -345,17 +353,31 @@ function handleReset() {
       </div>
     </div>
 
-    <section v-if="recentFeeds?.length" class="recent-feeds">
-      <h2 class="section-label">Recent Feeds</h2>
-      <ul class="recent-feeds-list">
-        <li v-for="feed in recentFeeds" :key="feed.id">
-          <a :href="feed.feedUrl" class="recent-feed-title">
-            {{ feed.title || feed.url }}
-          </a>
-          <span class="recent-feed-source">{{ feed.url }}</span>
-        </li>
-      </ul>
-    </section>
+    <div class="feeds-columns">
+      <section v-if="popularFeeds?.length" class="popular-feeds">
+        <h2 class="section-label">Popular Feeds</h2>
+        <ul class="popular-feeds-list">
+          <li v-for="feed in popularFeeds" :key="feed.id">
+            <a :href="feed.feedUrl" class="popular-feed-title">
+              {{ feed.title || feed.url }}
+            </a>
+            <span class="popular-feed-source">{{ feed.url }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="recentFeeds?.length" class="recent-feeds">
+        <h2 class="section-label">Recent Feeds</h2>
+        <ul class="recent-feeds-list">
+          <li v-for="feed in recentFeeds" :key="feed.id">
+            <a :href="feed.feedUrl" class="recent-feed-title">
+              {{ feed.title || feed.url }}
+            </a>
+            <span class="recent-feed-source">{{ feed.url }}</span>
+          </li>
+        </ul>
+      </section>
+    </div>
 
     <footer class="site-footer">
       <p>Est. 2026 | Assembled by <a href="https://btao.org/" target="_blank">Tao</a> | Contribute on <a href="https://github.com/taobojlen/rss-o-matic" target="_blank" rel="noopener noreferrer">GitHub</a></p>
