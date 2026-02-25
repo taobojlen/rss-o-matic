@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
       return new Response("Feed not found", { status: 404 });
     }
 
-    return await serveNewsletterFeed(event, id, newsletterFeed);
+    return await serveNewsletterFeed(event, id, newsletterFeed, format);
   }
 
   // Log fetch for popularity tracking (fire-and-forget)
@@ -191,13 +191,14 @@ async function serveSnapshotFeed(
 async function serveNewsletterFeed(
   event: any,
   id: string,
-  newsletterFeed: { id: string; title: string; email_address: string }
+  newsletterFeed: { id: string; title: string; email_address: string },
+  format: FeedFormat
 ) {
   // Check cache first
-  const cached = await getCachedFeed(id);
+  const cached = await getCachedFeed(id, format);
   if (cached) {
     setResponseHeaders(event, {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": contentTypeForFormat(format),
       "Cache-Control": "public, max-age=900",
     });
     return cached;
@@ -207,12 +208,12 @@ async function serveNewsletterFeed(
   const host = getRequestHeader(event, "host") || "localhost";
   const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
   const baseUrl = `${proto}://${host}`;
-  const selfUrl = `${baseUrl}/feed/${id}.xml`;
+  const selfUrl = `${baseUrl}/feed/${id}${extensionForFormat(format)}`;
 
   const extracted: ExtractedFeed = {
     title: newsletterFeed.title,
     description: `${newsletterFeed.title} — Newsletter feed powered by RSS-O-Matic`,
-    link: `${baseUrl}/feed/${id}.xml`,
+    link: `${baseUrl}/feed/${id}${extensionForFormat(format)}`,
     items: items.map((item) => ({
       title: item.title,
       link: `${baseUrl}/newsletter/${id}/${item.id}`,
@@ -224,12 +225,15 @@ async function serveNewsletterFeed(
     })),
   };
 
-  const xml = generateRssXml(extracted, selfUrl);
+  const xml =
+    format === "atom"
+      ? generateAtomXml(extracted, selfUrl)
+      : generateRssXml(extracted, selfUrl);
 
-  await setCachedFeed(id, xml);
+  await setCachedFeed(id, xml, format);
 
   setResponseHeaders(event, {
-    "Content-Type": "application/xml; charset=utf-8",
+    "Content-Type": contentTypeForFormat(format),
     "Cache-Control": "public, max-age=900",
   });
   return xml;
