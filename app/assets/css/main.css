@@ -5,19 +5,27 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #faf3e0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
-  color: #3d2c1e;
+  font-family: 'Jost', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #c2dad5;
+  /* Fine-grain noise — worn enamel surface texture */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.10'/%3E%3C/svg%3E");
+  color: #2a2622;
   min-height: 100vh;
 }
 
-/* Retro Header */
+/* ============================================================
+   HEADER — Deep teal enamel top panel with crosshatch + gloss
+   ============================================================ */
 .retro-header {
-  background-color: #c0392b;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M0 0l8 8M8 0l-8 8' stroke='rgba(0,0,0,0.09)' stroke-width='0.5' fill='none'/%3E%3Cpath d='M0 4h8M4 0v8' stroke='rgba(255,255,255,0.04)' stroke-width='0.5' fill='none'/%3E%3C/svg%3E");
+  background-color: #18665c;
+  /* Layer 1: enamel gloss highlight, Layer 2: crosshatch grid (lighter strokes for dark bg) */
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 40%, transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M0 0l8 8M8 0l-8 8' stroke='rgba(255,255,255,0.06)' stroke-width='0.5' fill='none'/%3E%3Cpath d='M0 4h8M4 0v8' stroke='rgba(0,0,0,0.08)' stroke-width='0.5' fill='none'/%3E%3C/svg%3E");
   text-align: center;
   padding: 3rem 1rem 2.5rem;
+  border-bottom: 4px solid #0e3e38;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .retro-header-inner {
@@ -28,11 +36,11 @@ body {
 .retro-title {
   font-family: 'Dela Gothic One', sans-serif;
   font-size: 3.5rem;
-  color: #faf3e0;
+  color: #fff;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   margin-bottom: 1rem;
-  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.08);
 }
 
 .retro-tagline {
@@ -42,14 +50,15 @@ body {
 .tagline-burst {
   display: inline-block;
   background: #ffd54f;
-  color: #3d2c1e;
+  color: #3a2800;
   padding: 0.4rem 1.5rem;
   font-weight: 700;
   font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   transform: rotate(-2deg);
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+  border: 1px solid #d4a800;
 }
 
 @media (max-width: 600px) {
@@ -62,7 +71,9 @@ body {
   }
 }
 
-/* Content container */
+/* ============================================================
+   CONTENT CONTAINER
+   ============================================================ */
 #root {
   max-width: 720px;
   margin: 0 auto;
@@ -73,13 +84,15 @@ body {
 .hero-description {
   text-align: center;
   font-size: 1.05rem;
-  color: #5a4a3a;
-  line-height: 1.6;
+  color: #2a3530;
+  line-height: 1.7;
   max-width: 520px;
   margin: 0 auto 2rem;
 }
 
-/* Form */
+/* ============================================================
+   FORM — Recessed input with chrome beveled border
+   ============================================================ */
 .url-form {
   display: flex;
   gap: 0.5rem;
@@ -95,37 +108,41 @@ body {
 .url-form input {
   flex: 1;
   padding: 0.75rem 1rem;
-  border: 1px solid #d4c5a9;
-  border-top-color: #b0a48c;
-  border-left-color: #b0a48c;
-  border-radius: 8px;
+  border: 2px solid;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
+  border-radius: 4px;
   background: #fefefe;
-  color: #3d2c1e;
+  color: #2a2622;
+  font-family: inherit;
   font-size: 1rem;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), inset 1px 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.10), inset 0 0 0 1px rgba(0,0,0,0.03);
 }
 
 .url-form input:focus {
   outline: none;
-  border-color: #ff6b35;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(255, 107, 53, 0.15);
+  border-color: #18665c;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.10), 0 0 0 3px rgba(24,102,92,0.18);
 }
 
 .url-form input::placeholder {
-  color: #8c7a6b;
+  color: #7a9a94;
 }
 
+/* ============================================================
+   BUTTONS — Raised bakelite-style with real depth
+   ============================================================ */
 .btn {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
+  font-family: inherit;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  transition: box-shadow 0.15s, transform 0.1s, border-bottom 0.15s;
+  transition: box-shadow 0.15s, transform 0.1s;
 }
 
 .btn:disabled {
@@ -136,10 +153,12 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(to bottom, #ff8255, #e55a28);
-  color: #fff;
-  border-bottom: 3px solid #c04a1a;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(180deg, #f0c840 0%, #d4a820 40%, #c49818 100%);
+  color: #3a2800;
+  border: 2px solid #a07810;
+  border-bottom-width: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
 }
 
 .btn-primary::after {
@@ -147,43 +166,51 @@ body {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(to bottom, #ff9570, #ff6b35);
-  opacity: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 60%);
   z-index: -1;
-  transition: opacity 0.2s;
   pointer-events: none;
 }
 
-.btn-primary:hover:not(:disabled)::after {
-  opacity: 1;
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+  background: linear-gradient(180deg, #f5d050 0%, #e0b428 40%, #d0a820 100%);
 }
 
 .btn-primary:active:not(:disabled) {
-  background: linear-gradient(to bottom, #e55a28, #d04f20);
-  border-bottom: 1px solid #c04a1a;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  border-bottom-width: 2px;
   transform: translateY(2px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  background: linear-gradient(180deg, #d0a820 0%, #c49818 40%, #b08810 100%);
 }
 
 .btn-primary:active:not(:disabled)::after {
   opacity: 0;
 }
 
-.btn-primary:hover:not(:disabled) {
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-}
-
 .btn-secondary {
-  background: #d4c5a9;
-  color: #3d2c1e;
+  background: linear-gradient(180deg, #ffffff 0%, #f0efed 100%);
+  color: #2a3a38;
+  border: 2px solid #8aada4;
+  border-bottom-width: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6);
 }
 
-/* Loading */
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f4f2 100%);
+}
+
+.btn-secondary:active:not(:disabled) {
+  border-bottom-width: 1px;
+  transform: translateY(2px);
+}
+
+/* ============================================================
+   LOADING & PROGRESS
+   ============================================================ */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* Progress Panel */
 .progress-panel {
   text-align: center;
   padding: 2.5rem 0;
@@ -224,8 +251,8 @@ body {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 2.5px solid #d4c5a9;
-  border-top-color: #ff6b35;
+  border: 2.5px solid #a0c4be;
+  border-top-color: #18665c;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -236,34 +263,35 @@ body {
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #4a7c3f;
+  background: linear-gradient(180deg, #4a8a48 0%, #3a7a40 100%);
   color: #fff;
   border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
 }
 
 .step-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: #d4c5a9;
+  background: #a0c4be;
   border-radius: 50%;
 }
 
 .step-label {
   font-size: 0.95rem;
-  color: #3d2c1e;
+  color: #2a2622;
   font-weight: 600;
 }
 
 .progress-step.pending .step-label {
-  color: #8c7a6b;
+  color: #6a8882;
   font-weight: 400;
 }
 
 .progress-step.completed .step-label {
-  color: #4a7c3f;
+  color: #3a7a40;
 }
 
 .label-fade-enter-active,
@@ -279,39 +307,47 @@ body {
 .progress-hint {
   margin-top: 1.5rem;
   font-size: 0.8rem;
-  color: #8c7a6b;
+  color: #6a8882;
 }
 
-/* Feed URL box */
+/* ============================================================
+   FEED URL BOX — Cream panel with green-tinted chrome trim
+   ============================================================ */
 .feed-url-box {
-  background: #e8f5e0;
-  border: 1px solid #a8d5a0;
-  border-radius: 8px;
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #68a860 #88c080 #90c888 #78b070;
+  border-radius: 4px;
   padding: 1rem;
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .feed-url-box code {
   flex: 1;
   font-size: 0.9rem;
-  color: #4a7c3f;
+  color: #3a6a38;
   word-break: break-all;
 }
 
-/* Items list */
+/* ============================================================
+   ITEMS LIST — Cream recessed panels with chrome trim
+   ============================================================ */
 .items-list {
   list-style: none;
 }
 
 .items-list li {
   padding: 1rem;
-  border: 1px solid #d4c5a9;
-  border-radius: 8px;
+  border: 2px solid;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
+  border-radius: 4px;
   margin-bottom: 0.5rem;
-  background: #ffffff;
+  background: #fefefe;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .items-list li h3 {
@@ -320,7 +356,7 @@ body {
 }
 
 .items-list li h3 a {
-  color: #c4451a;
+  color: #15605a;
   text-decoration: none;
 }
 
@@ -330,26 +366,30 @@ body {
 
 .items-list li .meta {
   font-size: 0.8rem;
-  color: #8c7a6b;
+  color: #6a8882;
 }
 
 .items-list li .desc {
   font-size: 0.85rem;
-  color: #6b5d50;
+  color: #4a5854;
   margin-top: 0.25rem;
 }
 
-/* Error */
+/* ============================================================
+   ERROR BOX
+   ============================================================ */
 .error-box {
-  background: #fde8e0;
-  border: 1px solid #e0a090;
-  border-radius: 8px;
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #c08070 #d0a090 #d8a898 #c88878;
+  border-radius: 4px;
   padding: 1.5rem;
   text-align: center;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .error-box p {
-  color: #c0392b;
+  color: #b82020;
   margin-bottom: 1rem;
 }
 
@@ -364,23 +404,27 @@ a.btn {
   display: inline-block;
 }
 
-/* Existing feed found */
+/* ============================================================
+   EXISTING FEED
+   ============================================================ */
 .existing-feed-box {
-  background: #e8f5e0;
-  border: 2px solid #a8d5a0;
-  border-radius: 8px;
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #68a860 #88c080 #90c888 #78b070;
+  border-radius: 4px;
   padding: 2rem;
   text-align: center;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .existing-feed-heading {
   font-size: 1.4rem;
-  color: #4a7c3f;
+  color: #3a7a40;
   margin-bottom: 0.5rem;
 }
 
 .existing-feed-message {
-  color: #5a6b50;
+  color: #4a6040;
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
 }
@@ -391,12 +435,14 @@ a.btn {
 }
 
 .existing-feed-item {
-  background: #ffffff;
-  border: 1px solid #a8d5a0;
-  border-radius: 8px;
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #68a860 #88c080 #90c888 #78b070;
+  border-radius: 4px;
   padding: 1rem;
   margin-bottom: 0.5rem;
   text-align: left;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .existing-feed-url-row {
@@ -408,18 +454,20 @@ a.btn {
 
 .feed-type-badge {
   display: inline-block;
-  background: #4a7c3f;
+  background: linear-gradient(180deg, #4a8a48 0%, #3a7a40 100%);
   color: #fff;
   padding: 0.15rem 0.5rem;
-  border-radius: 4px;
+  border-radius: 3px;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   flex-shrink: 0;
+  border: 1px solid #2a6030;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.2);
 }
 
 .existing-feed-link {
-  color: #4a7c3f;
+  color: #3a7a40;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
@@ -438,7 +486,7 @@ a.btn {
 .existing-feed-url {
   flex: 1;
   font-size: 0.8rem;
-  color: #6b8a60;
+  color: #5a7a50;
   word-break: break-all;
 }
 
@@ -447,13 +495,17 @@ a.btn {
   font-size: 0.8rem;
 }
 
-/* Unsuitable URL */
+/* ============================================================
+   UNSUITABLE URL — Warning panel
+   ============================================================ */
 .unsuitable-box {
-  background: #fff8e1;
-  border: 2px solid #e0c870;
-  border-radius: 8px;
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #c8a850 #d8c070 #e0c878 #d0b058;
+  border-radius: 4px;
   padding: 2rem;
   text-align: center;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .unsuitable-heading {
@@ -463,39 +515,44 @@ a.btn {
 }
 
 .unsuitable-hint {
-  color: #8c7a6b;
+  color: #5a5040;
   font-size: 0.85rem;
   margin-bottom: 1.5rem;
 }
 
-/* Config toggle */
+/* ============================================================
+   CONFIG TOGGLE / CODE BLOCKS
+   ============================================================ */
 .config-toggle {
   margin-top: 1.5rem;
 }
 
 .config-toggle summary {
   cursor: pointer;
-  color: #8c7a6b;
+  color: #6a8882;
   font-size: 0.85rem;
 }
 
 .config-toggle pre {
   margin-top: 0.5rem;
-  background: #f5ece0;
-  border: 1px solid #d4c5a9;
-  border-radius: 8px;
+  background: #f5f5f3;
+  border: 2px solid;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
+  border-radius: 4px;
   padding: 1rem;
   font-size: 0.8rem;
   overflow-x: auto;
-  color: #5a4a3a;
+  color: #3a4a48;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .section-label {
   font-size: 0.85rem;
-  color: #8c7a6b;
+  color: #2a3a38;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  font-weight: 500;
 }
 
 .actions {
@@ -503,11 +560,13 @@ a.btn {
   text-align: center;
 }
 
-/* Decorative retro divider */
+/* ============================================================
+   RETRO DIVIDERS — Diamond on a seam line
+   ============================================================ */
 .recent-feeds,
 .site-footer {
   position: relative;
-  border-top: 1px solid #d4c5a9;
+  border-top: 2px solid #a0c4be;
 }
 
 .recent-feeds::before,
@@ -517,14 +576,16 @@ a.btn {
   top: -0.55em;
   left: 50%;
   transform: translateX(-50%);
-  background: #faf3e0;
+  background: #c2dad5;
   padding: 0 0.75em;
   font-size: 0.85rem;
   line-height: 1;
-  color: #8c7a6b;
+  color: #7a9e96;
 }
 
-/* Recent feeds */
+/* ============================================================
+   RECENT FEEDS
+   ============================================================ */
 .recent-feeds {
   margin-top: 3rem;
   padding-top: 2rem;
@@ -536,15 +597,17 @@ a.btn {
 
 .recent-feeds-list li {
   padding: 0.75rem 1rem;
-  border: 1px solid #d4c5a9;
-  border-radius: 8px;
+  border: 2px solid;
+  border-color: #8aada4 #a8c8c0 #b0d0c8 #98b8b0;
+  border-radius: 4px;
   margin-bottom: 0.5rem;
-  background: #ffffff;
+  background: #fefefe;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .recent-feed-title {
   display: block;
-  color: #c4451a;
+  color: #15605a;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
@@ -557,24 +620,26 @@ a.btn {
 .recent-feed-source {
   display: block;
   font-size: 0.8rem;
-  color: #8c7a6b;
+  color: #6a8882;
   margin-top: 0.15rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Footer */
+/* ============================================================
+   FOOTER
+   ============================================================ */
 .site-footer {
   margin-top: 3rem;
   padding-top: 1.5rem;
   text-align: center;
   font-size: 0.8rem;
-  color: #8c7a6b;
+  color: #6a8882;
 }
 
 .site-footer a {
-  color: #c4451a;
+  color: #15605a;
   text-decoration: none;
   font-weight: 600;
 }
