@@ -66,25 +66,18 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Patch wrangler config for preview
+        run: |
+          # Use sed for targeted replacements to preserve the generated config structure
+          # (full JSON.parse/stringify breaks wrangler's module resolution with --no-bundle)
+          sed -i 's/"name": "rss-o-matic"/"name": "rss-o-matic-preview"/' .output/server/wrangler.json
+          sed -i 's/31ed3c46-030e-4448-b4ad-fe38e055cedf/007b6207-07d6-4fac-88fb-29714dd52d65/' .output/server/wrangler.json
+          sed -i 's/405d94875ef249ff866a5314e032ff8f/f63d2ce7303846acb066a2e1c8022e09/' .output/server/wrangler.json
       - name: Deploy preview to Cloudflare Workers
         id: deploy
         run: |
-          # Patch the generated wrangler config to use the preview environment bindings
-          node -e "
-            const fs = require('fs');
-            const root = JSON.parse(fs.readFileSync('wrangler.jsonc', 'utf8'));
-            const preview = root.env.preview;
-            const cfg = JSON.parse(fs.readFileSync('.output/server/wrangler.json', 'utf8'));
-            cfg.name = preview.name;
-            cfg.d1_databases = preview.d1_databases;
-            cfg.kv_namespaces = preview.kv_namespaces;
-            fs.writeFileSync('.output/server/wrangler.json', JSON.stringify(cfg, null, 2));
-          "
-
-          DEPLOY_OUTPUT=$(npx wrangler deploy --no-bundle --config .output/server/wrangler.json 2>&1) || true
-          echo "$DEPLOY_OUTPUT"
-
-          PREVIEW_URL=$(echo "$DEPLOY_OUTPUT" | grep -oP 'https://[^\s]+\.workers\.dev' | head -1)
+          npx wrangler deploy --no-bundle --config .output/server/wrangler.json 2>&1 | tee /tmp/deploy-output.txt
+          PREVIEW_URL=$(grep -oP 'https://[^\s]+\.workers\.dev' /tmp/deploy-output.txt | head -1)
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
