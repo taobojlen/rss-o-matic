@@ -84,6 +84,7 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
         title: "Example Updates",
         items: [],
       }),
+      expect.any(String),
       expect.any(String)
     );
     expect(mockSaveFeedItem).not.toHaveBeenCalled();

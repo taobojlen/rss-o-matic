@@ -83,11 +83,12 @@ export default defineEventHandler(async (event) => {
 
     const host = getRequestHeader(event, "host") || "localhost";
     const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
-    const selfUrl = `${proto}://${host}/feed/${id}${extensionForFormat(format)}`;
+    const baseUrl = `${proto}://${host}`;
+    const selfUrl = `${baseUrl}/feed/${id}${extensionForFormat(format)}`;
     const xml =
       format === "atom"
-        ? generateAtomXml(extracted, selfUrl)
-        : generateRssXml(extracted, selfUrl);
+        ? generateAtomXml(extracted, selfUrl, baseUrl)
+        : generateRssXml(extracted, selfUrl, baseUrl);
 
     await setCachedFeed(id, xml, format);
 
@@ -173,11 +174,12 @@ async function serveSnapshotFeed(
 
   const host = getRequestHeader(event, "host") || "localhost";
   const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
-  const selfUrl = `${proto}://${host}/feed/${feedId}${extensionForFormat(format)}`;
+  const baseUrl = `${proto}://${host}`;
+  const selfUrl = `${baseUrl}/feed/${feedId}${extensionForFormat(format)}`;
   const xml =
     format === "atom"
-      ? generateAtomXml(extracted, selfUrl)
-      : generateRssXml(extracted, selfUrl);
+      ? generateAtomXml(extracted, selfUrl, baseUrl)
+      : generateRssXml(extracted, selfUrl, baseUrl);
 
   await setCachedFeed(feedId, xml, format);
 
