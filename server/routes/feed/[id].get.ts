@@ -209,24 +209,22 @@ async function serveNewsletterFeed(
   const baseUrl = `${proto}://${host}`;
   const selfUrl = `${baseUrl}/feed/${id}.xml`;
 
-  const rssItems = items.map((item) => ({
-    title: item.title,
-    link: `${baseUrl}/newsletter/${id}/${item.id}`,
-    guid: item.message_id || item.id,
-    description: item.content_text
-      ? item.content_text.slice(0, 500)
-      : undefined,
-    pubDate: item.received_at,
-    author: item.author_name || item.author_email || undefined,
-  }));
+  const extracted: ExtractedFeed = {
+    title: newsletterFeed.title,
+    description: `${newsletterFeed.title} — Newsletter feed powered by RSS-O-Matic`,
+    link: `${baseUrl}/feed/${id}.xml`,
+    items: items.map((item) => ({
+      title: item.title,
+      link: `${baseUrl}/newsletter/${id}/${item.id}`,
+      description: item.content_text
+        ? item.content_text.slice(0, 500)
+        : undefined,
+      pubDate: item.received_at,
+      author: item.author_name || item.author_email || undefined,
+    })),
+  };
 
-  const xml = generateNewsletterRssXml(
-    newsletterFeed.title,
-    `${newsletterFeed.title} — Newsletter feed powered by RSS-O-Matic`,
-    `${baseUrl}/feed/${id}.xml`,
-    selfUrl,
-    rssItems
-  );
+  const xml = generateRssXml(extracted, selfUrl);
 
   await setCachedFeed(id, xml);
 
