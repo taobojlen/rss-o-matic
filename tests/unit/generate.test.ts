@@ -315,7 +315,7 @@ describe("POST /api/generate", () => {
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
 
-  it("returns unsuitable when AI flags page as unsuitable", async () => {
+  it("returns unsuitable when AI flags page as unsuitable and not snapshot-suitable", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com" });
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><body><h1>Welcome</h1></body></html>");
@@ -324,6 +324,7 @@ describe("POST /api/generate", () => {
     mockGenerateParserConfig.mockResolvedValue({
       unsuitable: true,
       reason: "This appears to be a landing page with no repeating content",
+      snapshotSuitable: false,
     });
 
     const handler = await import("~/server/api/generate.post").then(
@@ -335,9 +336,136 @@ describe("POST /api/generate", () => {
       type: "unsuitable",
       reason: "This appears to be a landing page with no repeating content",
     });
-    // Should NOT parse or save
     expect(mockParseHtml).not.toHaveBeenCalled();
     expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("returns snapshot_available when AI flags page as unsuitable but snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Updates here</main>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: true,
+      reason: "This is a single updates page, not a listing",
+      snapshotSuitable: true,
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: "This is a single updates page, not a listing",
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+    expect(mockParseHtml).not.toHaveBeenCalled();
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("falls back to snapshot_available after retries exhaust when page is snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Updates here</main>");
+    // AI says unsuitable=false (thinks it can extract items) but also snapshotSuitable=true
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "article.update-entry", fields: { title: { selector: ".update-title" }, link: { selector: "a", attr: "href" } }, feed: { title: "o16g Updates" } },
+      snapshotSuitable: true,
+      contentSelector: ".updates-feed",
+      suggestedTitle: "o16g Updates",
+    });
+    // Selectors don't match anything
+    mockParseHtml.mockReturnValue({
+      title: "o16g Updates",
+      description: "",
+      link: "https://example.com/updates",
+      items: [],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: expect.any(String),
+      contentSelector: ".updates-feed",
+      suggestedTitle: "o16g Updates",
+    });
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+    // Should exhaust retries before falling back (1 initial + 2 retries = 3)
+    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(3);
+  });
+
+  it("prefers snapshot when selectors find only 1 item and page is snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Some content</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Some content</main>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "main", fields: { title: { selector: "h1" }, link: { selector: "a", attr: "href" } }, feed: { title: "Updates" } },
+      snapshotSuitable: true,
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+    mockParseHtml.mockReturnValue({
+      title: "Updates",
+      description: "",
+      link: "https://example.com/updates",
+      items: [{ title: "Some content", link: "https://example.com/updates" }],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: expect.any(String),
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("creates selector feed normally when only 1 item but not snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><article>Post</article></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<article>Post</article>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "article", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
+      snapshotSuitable: false,
+    });
+    mockParseHtml.mockReturnValue({
+      title: "Blog",
+      description: "",
+      link: "https://example.com/blog",
+      items: [{ title: "First Post", link: "https://example.com/blog/first" }],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result.type).toBe("generated");
+    expect(mockSaveFeed).toHaveBeenCalled();
   });
 
   it("skips feed detection for URLs already in DB", async () => {
@@ -458,6 +586,7 @@ describe("POST /api/generate", () => {
       mockGenerateParserConfig.mockResolvedValue({
         unsuitable: true,
         reason: "Landing page",
+        snapshotSuitable: false,
       });
 
       const handler = await import("~/server/api/generate.post").then(
@@ -660,6 +789,7 @@ describe("POST /api/generate", () => {
       mockGenerateParserConfig.mockResolvedValue({
         unsuitable: true,
         reason: "Landing page",
+        snapshotSuitable: false,
       });
 
       const handler = await import("~/server/api/generate.post").then((m) => m.default);

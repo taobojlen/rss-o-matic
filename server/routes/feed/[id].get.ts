@@ -1,4 +1,5 @@
-import type { ParserConfig } from "../../utils/schema";
+import type { ParserConfig, SnapshotConfig, ExtractedFeed } from "../../utils/schema";
+import { detectChange } from "../../utils/change-detector";
 
 export default defineEventHandler(async (event) => {
   let id = getRouterParam(event, "id");
@@ -35,6 +36,11 @@ export default defineEventHandler(async (event) => {
   // Fetch, parse, generate
   try {
     const html = await fetchPage(feed.url);
+
+    if (feed.type === "snapshot") {
+      return await serveSnapshotFeed(event, feed, html, id);
+    }
+
     const config: ParserConfig = JSON.parse(feed.parser_config);
     let extracted = parseHtml(html, config, feed.url);
 
@@ -63,3 +69,85 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 502, statusMessage: "Failed to fetch source page", cause: err });
   }
 });
+
+async function serveSnapshotFeed(
+  event: any,
+  feed: { url: string; title: string | null; parser_config: string },
+  html: string,
+  feedId: string
+) {
+  const config: SnapshotConfig = JSON.parse(feed.parser_config);
+
+  // Get latest snapshot for comparison
+  const latestSnapshot = await getLatestSnapshot(feedId);
+
+  // Detect changes
+  const result = await detectChange(
+    html,
+    config,
+    latestSnapshot?.contentText ?? null,
+    latestSnapshot?.contentHash ?? null
+  );
+
+  // If changed, create a new feed item and update snapshot
+  if (result.changed) {
+    const now = new Date();
+    const title = `Update \u2014 ${now.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}, ${now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+
+    await saveFeedItem(
+      feedId,
+      title,
+      feed.url,
+      result.summary || "Page content was updated.",
+      result.currentHash
+    );
+
+    await saveSnapshot(feedId, result.currentText, result.currentHash);
+
+    // Prune old data (fire-and-forget)
+    const ctx = (event as any).context?.cloudflare?.context;
+    const pruneWork = Promise.all([
+      pruneSnapshots(feedId, 3),
+      pruneFeedItems(feedId, 50),
+    ]);
+    if (ctx?.waitUntil) {
+      ctx.waitUntil(pruneWork);
+    } else {
+      pruneWork.catch(() => {});
+    }
+  }
+
+  // Build RSS from stored items
+  const items = await getFeedItems(feedId, 50);
+  const extracted: ExtractedFeed = {
+    title: config.feedTitle || feed.title || "Page Changes",
+    description: `Monitoring ${feed.url} for changes`,
+    link: feed.url,
+    items: items.map((item) => ({
+      title: item.title,
+      link: item.link,
+      description: item.description || undefined,
+      pubDate: item.detectedAt,
+    })),
+  };
+
+  const host = getRequestHeader(event, "host") || "localhost";
+  const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
+  const selfUrl = `${proto}://${host}/feed/${feedId}.xml`;
+  const xml = generateRssXml(extracted, selfUrl);
+
+  await setCachedFeed(feedId, xml);
+
+  setResponseHeaders(event, {
+    "Content-Type": "application/xml; charset=utf-8",
+    "Cache-Control": "public, max-age=900",
+  });
+  return xml;
+}

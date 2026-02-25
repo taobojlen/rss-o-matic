@@ -21,9 +21,10 @@ interface DiscoveredFeed {
 }
 
 type GenerateResponse =
-  | { type: 'generated'; feedId: string; feedUrl: string; preview: Preview; parserConfig: object }
+  | { type: 'generated'; feedId: string; feedUrl: string; preview: Preview; parserConfig?: object; feedType?: 'snapshot' }
   | { type: 'existing_feed'; existingFeeds: DiscoveredFeed[] }
   | { type: 'unsuitable'; reason: string }
+  | { type: 'snapshot_available'; reason: string; contentSelector: string; suggestedTitle: string }
 
 interface RecentFeed {
   id: string
@@ -40,7 +41,7 @@ interface PopularFeed {
   feedUrl: string
 }
 
-type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'error'
+type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'snapshot_available' | 'error'
 
 const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
 const { data: popularFeeds } = await useFetch<PopularFeed[]>('/api/feeds/popular')
@@ -50,6 +51,7 @@ const step = ref<AppStep>('idle')
 const generatedData = ref<Extract<GenerateResponse, { type: 'generated' }> | null>(null)
 const existingFeeds = ref<DiscoveredFeed[]>([])
 const unsuitableReason = ref('')
+const snapshotData = ref<{ contentSelector: string; suggestedTitle: string } | null>(null)
 const errorMessage = ref('')
 const errorStatusCode = ref<number | null>(null)
 const copied = ref(false)
@@ -80,6 +82,14 @@ async function handleSubmit() {
       progress.reset()
       existingFeeds.value = res.existingFeeds
       step.value = 'existing_feed'
+    } else if (res.type === 'snapshot_available') {
+      progress.reset()
+      unsuitableReason.value = res.reason
+      snapshotData.value = {
+        contentSelector: res.contentSelector,
+        suggestedTitle: res.suggestedTitle,
+      }
+      step.value = 'snapshot_available'
     } else if (res.type === 'unsuitable') {
       progress.reset()
       unsuitableReason.value = res.reason
@@ -92,6 +102,35 @@ async function handleSubmit() {
       step.value = 'preview'
       refreshRecentFeeds()
     }
+  } catch (err: any) {
+    progress.reset()
+    errorMessage.value =
+      err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
+    errorStatusCode.value = err?.data?.statusCode || err?.statusCode || null
+    step.value = 'error'
+  }
+}
+
+async function handleCreateSnapshotFeed() {
+  if (!snapshotData.value) return
+  step.value = 'loading'
+  progress.start()
+
+  try {
+    const res = await $fetch<Extract<GenerateResponse, { type: 'generated' }>>('/api/generate-snapshot', {
+      method: 'POST',
+      body: {
+        url: url.value.trim(),
+        contentSelector: snapshotData.value.contentSelector,
+        suggestedTitle: snapshotData.value.suggestedTitle,
+      },
+    })
+
+    progress.finish()
+    generatedData.value = res
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    step.value = 'preview'
+    refreshRecentFeeds()
   } catch (err: any) {
     progress.reset()
     errorMessage.value =
@@ -154,6 +193,7 @@ function handleReset() {
   generatedData.value = null
   existingFeeds.value = []
   unsuitableReason.value = ''
+  snapshotData.value = null
   errorMessage.value = ''
   errorStatusCode.value = null
   copied.value = false
@@ -301,6 +341,23 @@ function handleReset() {
       </div>
     </div>
 
+    <div v-if="step === 'snapshot_available'" class="unsuitable-box">
+      <h2 class="unsuitable-heading">No feed signal&hellip; but we're picking up something!</h2>
+      <p class="unsuitable-hint">
+        This page doesn't have a list of items we can tune into, but it looks like
+        it gets updated from time to time. We can keep an eye on it and drop a new
+        item in your feed whenever the content changes.
+      </p>
+      <div class="error-actions">
+        <button class="btn btn-primary" @click="handleCreateSnapshotFeed">
+          Create Feed
+        </button>
+        <button class="btn btn-secondary" @click="handleReset">
+          Try Another URL
+        </button>
+      </div>
+    </div>
+
     <div v-if="step === 'preview' && generatedData">
       <div class="feed-url-box">
         <code>{{ origin }}{{ generatedData.feedUrl }}</code>
@@ -309,35 +366,61 @@ function handleReset() {
         </button>
       </div>
 
-      <p class="section-label">
-        Preview ({{ generatedData.preview.items.length }} items from "{{ generatedData.preview.title }}")
-      </p>
-      <ul class="items-list">
-        <li v-for="(item, i) in generatedData.preview.items.slice(0, 5)" :key="i">
-          <h3>
-            <a :href="item.link" target="_blank" rel="noopener noreferrer">
-              {{ item.title }}
-            </a>
-          </h3>
-          <div v-if="item.pubDate || item.author" class="meta">
-            <span v-if="item.pubDate">{{ item.pubDate }}</span>
-            <span v-if="item.pubDate && item.author"> &middot; </span>
-            <span v-if="item.author">{{ item.author }}</span>
-          </div>
-          <div v-if="item.description" class="desc">
-            {{
-              item.description.length > 200
-                ? item.description.slice(0, 200) + '...'
-                : item.description
-            }}
-          </div>
-        </li>
-      </ul>
+      <template v-if="generatedData.feedType === 'snapshot'">
+        <p class="section-label">Monitoring station tuned in!</p>
+        <p class="unsuitable-hint">
+          We've captured the current state of this page. Whenever the content
+          changes and your reader checks in, you'll get a fresh item in the feed.
+        </p>
+        <ul v-if="generatedData.preview.items.length" class="items-list">
+          <li v-for="(item, i) in generatedData.preview.items" :key="i">
+            <h3>
+              <a :href="item.link" target="_blank" rel="noopener noreferrer">
+                {{ item.title }}
+              </a>
+            </h3>
+            <div v-if="item.description" class="desc">
+              {{
+                item.description.length > 200
+                  ? item.description.slice(0, 200) + '...'
+                  : item.description
+              }}
+            </div>
+          </li>
+        </ul>
+      </template>
 
-      <details class="config-toggle">
-        <summary>View parser config (JSON)</summary>
-        <pre>{{ JSON.stringify(generatedData.parserConfig, null, 2) }}</pre>
-      </details>
+      <template v-else>
+        <p class="section-label">
+          Preview ({{ generatedData.preview.items.length }} items from "{{ generatedData.preview.title }}")
+        </p>
+        <ul class="items-list">
+          <li v-for="(item, i) in generatedData.preview.items.slice(0, 5)" :key="i">
+            <h3>
+              <a :href="item.link" target="_blank" rel="noopener noreferrer">
+                {{ item.title }}
+              </a>
+            </h3>
+            <div v-if="item.pubDate || item.author" class="meta">
+              <span v-if="item.pubDate">{{ item.pubDate }}</span>
+              <span v-if="item.pubDate && item.author"> &middot; </span>
+              <span v-if="item.author">{{ item.author }}</span>
+            </div>
+            <div v-if="item.description" class="desc">
+              {{
+                item.description.length > 200
+                  ? item.description.slice(0, 200) + '...'
+                  : item.description
+              }}
+            </div>
+          </li>
+        </ul>
+
+        <details class="config-toggle">
+          <summary>View parser config (JSON)</summary>
+          <pre>{{ JSON.stringify(generatedData.parserConfig, null, 2) }}</pre>
+        </details>
+      </template>
 
       <div class="actions">
         <button class="btn btn-secondary" @click="handleReset">
