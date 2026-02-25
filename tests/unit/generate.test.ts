@@ -369,7 +369,7 @@ describe("POST /api/generate", () => {
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
 
-  it("falls back to snapshot_available immediately when selectors fail and page is snapshot-suitable", async () => {
+  it("falls back to snapshot_available after retries exhaust when page is snapshot-suitable", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
@@ -403,8 +403,8 @@ describe("POST /api/generate", () => {
       suggestedTitle: "o16g Updates",
     });
     expect(mockSaveFeed).not.toHaveBeenCalled();
-    // Should NOT retry — snapshot fallback fires on first failed parse
-    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
+    // Should exhaust retries before falling back (1 initial + 2 retries = 3)
+    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(3);
   });
 
   it("skips feed detection for URLs already in DB", async () => {

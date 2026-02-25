@@ -138,18 +138,6 @@ export default defineEventHandler(async (event) => {
         break;
       }
 
-      // If selectors returned nothing but AI already flagged the page as
-      // snapshot-suitable, offer that immediately instead of wasting retries
-      if (lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
-        capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
-        return {
-          type: "snapshot_available" as const,
-          reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
-          contentSelector: lastSnapshotInfo.contentSelector,
-          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
-        };
-      }
-
       if (attempt < MAX_SELECTOR_RETRIES) {
         capturePostHogEvent(event, "selector_retry", { url: normalized, attempt: attempt + 1, reason: "no_items" });
         conversationHistory.push(
@@ -160,6 +148,17 @@ export default defineEventHandler(async (event) => {
     }
 
     if (preview.items.length === 0) {
+      // Fall back to snapshot monitoring if the AI flagged the page as suitable
+      if (lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
+        capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+        return {
+          type: "snapshot_available" as const,
+          reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
+          contentSelector: lastSnapshotInfo.contentSelector,
+          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+        };
+      }
+
       throw createError({
         statusCode: 422,
         statusMessage:
