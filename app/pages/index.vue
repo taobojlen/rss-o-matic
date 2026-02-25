@@ -42,10 +42,12 @@ interface PopularFeed {
 }
 
 type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'snapshot_available' | 'error'
+type ActiveTab = 'url' | 'newsletter'
 
 const { data: recentFeeds, refresh: refreshRecentFeeds } = await useFetch<RecentFeed[]>('/api/feeds')
 const { data: popularFeeds } = await useFetch<PopularFeed[]>('/api/feeds/popular')
 
+const activeTab = ref<ActiveTab>('url')
 const url = ref('')
 const step = ref<AppStep>('idle')
 const generatedData = ref<Extract<GenerateResponse, { type: 'generated' }> | null>(null)
@@ -217,34 +219,52 @@ function handleReset() {
   </header>
 
   <div id="root">
-    <p v-if="step === 'idle' || step === 'loading'" class="hero-description">
-      Got a favorite website with no RSS feed? Just punch in the URL and our
-      robots will manufacture one for you.
-    </p>
-
-    <form
-      v-if="step === 'idle' || step === 'loading'"
-      class="url-form"
-      @submit.prevent="handleSubmit"
-    >
-      <input
-        v-model="url"
-        type="url"
-        placeholder="https://example.com/blog"
-        :disabled="step === 'loading'"
-        required
-        autofocus
-      />
+    <div class="tab-switcher">
       <button
-        type="submit"
-        class="btn btn-primary"
-        :disabled="step === 'loading'"
+        class="tab-btn"
+        :class="{ active: activeTab === 'url' }"
+        @click="activeTab = 'url'"
       >
-        {{ step === 'loading' ? 'Generating...' : 'Generate Feed' }}
+        Generate from URL
       </button>
-    </form>
+      <button
+        class="tab-btn"
+        :class="{ active: activeTab === 'newsletter' }"
+        @click="activeTab = 'newsletter'"
+      >
+        Newsletter to RSS
+      </button>
+    </div>
 
-    <div v-if="step === 'loading'" class="progress-panel">
+    <template v-if="activeTab === 'url'">
+      <p v-if="step === 'idle' || step === 'loading'" class="hero-description">
+        Got a favorite website with no RSS feed? Just punch in the URL and our
+        robots will manufacture one for you.
+      </p>
+
+      <form
+        v-if="step === 'idle' || step === 'loading'"
+        class="url-form"
+        @submit.prevent="handleSubmit"
+      >
+        <input
+          v-model="url"
+          type="url"
+          placeholder="https://example.com/blog"
+          :disabled="step === 'loading'"
+          required
+          autofocus
+        />
+        <button
+          type="submit"
+          class="btn btn-primary"
+          :disabled="step === 'loading'"
+        >
+          {{ step === 'loading' ? 'Generating...' : 'Generate Feed' }}
+        </button>
+      </form>
+
+      <div v-if="step === 'loading'" class="progress-panel">
       <div class="progress-steps">
         <div
           class="progress-step"
@@ -440,6 +460,11 @@ function handleReset() {
         </a>
       </div>
     </div>
+    </template>
+
+    <template v-if="activeTab === 'newsletter'">
+      <NewsletterCreator />
+    </template>
 
     <div class="feeds-columns">
       <section v-if="popularFeeds?.length" class="popular-feeds">

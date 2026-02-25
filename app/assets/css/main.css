@@ -82,6 +82,90 @@ body {
   padding: 2rem 1rem;
 }
 
+/* ============================================================
+   TAB SWITCHER — Retro toggle between URL and Newsletter modes
+   ============================================================ */
+.tab-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+
+.tab-btn {
+  padding: 0.6rem 1.5rem;
+  border: 2px solid #8aada4;
+  background: linear-gradient(180deg, #ffffff 0%, #f0efed 100%);
+  color: #5a7a74;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab-btn:first-child {
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+}
+
+.tab-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.tab-btn.active {
+  background: linear-gradient(180deg, #18665c 0%, #145a52 100%);
+  color: #fff;
+  border-color: #0e3e38;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.tab-btn:not(.active):hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e8ebe9 100%);
+  color: #2a3a38;
+}
+
+/* ============================================================
+   NEWSLETTER RESULT — Success state after inbox creation
+   ============================================================ */
+.newsletter-result {
+  background: #fefefe;
+  border: 2px solid;
+  border-color: #68a860 #88c080 #90c888 #78b070;
+  border-radius: 4px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.newsletter-result-heading {
+  font-size: 1.4rem;
+  color: #3a7a40;
+  margin-bottom: 0.5rem;
+}
+
+.newsletter-result-intro {
+  color: #4a6040;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.newsletter-field {
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.newsletter-field-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6a8882;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
 /* Hero description */
 .hero-description {
   text-align: center;

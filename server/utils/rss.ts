@@ -1,5 +1,14 @@
 import type { ExtractedFeed, FeedItem } from "./schema";
 
+export interface NewsletterRssItem {
+  title: string;
+  link: string;
+  guid: string;
+  description?: string;
+  pubDate?: string;
+  author?: string;
+}
+
 /**
  * Generate RSS 2.0 XML from an extracted feed.
  */
@@ -44,6 +53,56 @@ function buildItem(item: FeedItem): string {
   }
   if (item.image) {
     xml += `      <enclosure url="${esc(item.image)}" type="image/jpeg" length="0"/>\n`;
+  }
+
+  xml += "    </item>";
+  return xml;
+}
+
+/**
+ * Generate RSS 2.0 XML for a newsletter feed with stored items.
+ */
+export function generateNewsletterRssXml(
+  title: string,
+  description: string,
+  link: string,
+  selfUrl: string,
+  items: NewsletterRssItem[]
+): string {
+  const itemsXml = items.map((item) => buildNewsletterItem(item)).join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="/pretty-feed-v3.xsl" type="text/xsl"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${esc(title)}</title>
+    <link>${esc(link)}</link>
+    <description>${esc(description)}</description>
+    <atom:link href="${esc(selfUrl)}" rel="self" type="application/rss+xml"/>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <generator>RSS-O-Matic</generator>
+${itemsXml}
+  </channel>
+</rss>`;
+}
+
+function buildNewsletterItem(item: NewsletterRssItem): string {
+  let xml = "    <item>\n";
+  xml += `      <title>${esc(item.title)}</title>\n`;
+  xml += `      <link>${esc(item.link)}</link>\n`;
+  xml += `      <guid isPermaLink="false">${esc(item.guid)}</guid>\n`;
+
+  if (item.description) {
+    xml += `      <description>${esc(item.description)}</description>\n`;
+  }
+  if (item.pubDate) {
+    const date = tryParseDate(item.pubDate);
+    if (date) {
+      xml += `      <pubDate>${date.toUTCString()}</pubDate>\n`;
+    }
+  }
+  if (item.author) {
+    xml += `      <author>${esc(item.author)}</author>\n`;
   }
 
   xml += "    </item>";
