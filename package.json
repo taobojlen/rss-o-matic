@@ -8,6 +8,7 @@
     "preview": "nuxt preview",
     "deploy": "rm -rf .nuxt && nuxt build && ./scripts/upload-sourcemaps.sh && npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc && npx wrangler deploy --no-bundle --config .output/server/wrangler.json",
     "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --config vitest.config.ts",
@@ -38,6 +39,7 @@
     "happy-dom": "^20.7.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
+    "vue-tsc": "^3.2.5",
     "wrangler": "^4.67.0"
   }
 }

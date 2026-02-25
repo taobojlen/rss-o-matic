@@ -1,4 +1,5 @@
 import { OpenAI } from "@posthog/ai/openai";
+import type { ChatCompletion } from "openai/resources/chat/completions";
 import { consola } from "consola";
 import type { ParserConfig } from "./schema";
 import { validateParserConfig } from "./validate";
@@ -162,7 +163,7 @@ export async function generateParserConfig(
     provider: { require_parameters: boolean };
   });
 
-  const content = completion.choices?.[0]?.message?.content;
+  const content = (completion as ChatCompletion).choices?.[0]?.message?.content;
   if (!content) {
     logger.error({ data: JSON.stringify(completion) }, "Empty AI response");
     throw new Error("Empty response from AI");

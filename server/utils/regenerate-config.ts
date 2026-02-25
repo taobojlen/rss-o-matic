@@ -28,13 +28,19 @@ export async function attemptRegeneration(
     const trimmed = trimHtml(html);
     logger.info({ feedId: feed.id, url: feed.url }, "Attempting config regeneration");
 
-    const newConfig = await generateParserConfig(
+    const result = await generateParserConfig(
       trimmed,
       feed.url,
       config.openrouterApiKey,
       config.openrouterModel
     );
 
+    if (result.unsuitable) {
+      logger.warn({ feedId: feed.id, reason: result.reason }, "AI deemed page unsuitable");
+      return { status: "failed" };
+    }
+
+    const newConfig = result.config;
     const extracted = parseHtml(html, newConfig, feed.url);
     if (extracted.items.length === 0) {
       logger.warn({ feedId: feed.id }, "Regenerated config also found 0 items");

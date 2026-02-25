@@ -1,5 +1,4 @@
 import * as cheerio from "cheerio";
-import type { Element } from "domhandler";
 
 const REMOVE_ELEMENTS = [
   "script",
@@ -45,7 +44,7 @@ export function trimHtml(rawHtml: string): string {
       elem.removeAttr(attr);
     }
     // Remove data-* attributes except data-testid
-    const attribs = (el as Element).attribs || {};
+    const attribs = (el as unknown as { attribs?: Record<string, string> }).attribs || {};
     for (const key of Object.keys(attribs)) {
       if (key.startsWith("data-") && key !== "data-testid") {
         elem.removeAttr(key);

@@ -98,7 +98,7 @@ describe("attemptRegeneration", () => {
     vi.clearAllMocks();
     mockInvalidateCachedFeed.mockResolvedValue(undefined);
     mockUpdateFeedConfig.mockResolvedValue(undefined);
-    mockGenerateParserConfig.mockResolvedValue(VALID_CONFIG);
+    mockGenerateParserConfig.mockResolvedValue({ unsuitable: false, config: VALID_CONFIG });
     mockParseHtml.mockReturnValue(EXTRACTED_WITH_ITEMS);
   });
 

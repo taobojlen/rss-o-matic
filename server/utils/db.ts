@@ -28,7 +28,7 @@ export async function getFeedByUrl(url: string): Promise<FeedRecord | null> {
     .where(eq(schema.feeds.url, url))
     .limit(1);
   if (rows.length === 0) return null;
-  const row = rows[0];
+  const row = rows[0]!;
   return {
     id: row.id,
     url: row.url,
@@ -126,7 +126,7 @@ export async function getFeed(id: string): Promise<FeedRecord | null> {
     .where(eq(schema.feeds.id, id))
     .limit(1);
   if (rows.length === 0) return null;
-  const row = rows[0];
+  const row = rows[0]!;
   return {
     id: row.id,
     url: row.url,

@@ -47,7 +47,7 @@ export async function getNewsletterFeed(
     .where(eq(schema.newsletterFeeds.id, id))
     .limit(1);
   if (rows.length === 0) return null;
-  const row = rows[0];
+  const row = rows[0]!;
   return {
     id: row.id,
     title: row.title,
@@ -66,7 +66,7 @@ export async function getNewsletterFeedByEmail(
     .where(eq(schema.newsletterFeeds.emailAddress, emailAddress))
     .limit(1);
   if (rows.length === 0) return null;
-  const row = rows[0];
+  const row = rows[0]!;
   return {
     id: row.id,
     title: row.title,
@@ -163,7 +163,7 @@ export async function getNewsletterItem(
     .where(eq(schema.newsletterItems.id, itemId))
     .limit(1);
   if (rows.length === 0) return null;
-  const row = rows[0];
+  const row = rows[0]!;
   return {
     id: row.id,
     feed_id: row.feedId,
