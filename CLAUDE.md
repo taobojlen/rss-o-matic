@@ -43,6 +43,7 @@ Always run `pnpm test` after making changes to ensure nothing is broken.
 
 ALWAYS refer to the relevant docs when fixing a bug or implementing a new feature. This is always better than going off memory; things may have changed.
 
+- [Nitro](https://nitro.build/llms.txt)
 - [NuxtHub](https://hub.nuxt.com/llms.txt)
 - [Nuxt](https://nuxt.com/llms.txt)
 - [Cloudflare Workers](https://workers.cloudflare.com/llms.txt)
