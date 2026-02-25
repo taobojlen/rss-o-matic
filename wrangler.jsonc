@@ -25,5 +25,25 @@
       "migrations_table": "_hub_migrations",
       "migrations_dir": "server/db/migrations"
     }
-  ]
+  ],
+  "env": {
+    "preview": {
+      "name": "rss-o-matic-preview",
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "f63d2ce7303846acb066a2e1c8022e09"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "rss-o-matic-preview",
+          "database_id": "007b6207-07d6-4fac-88fb-29714dd52d65",
+          "migrations_table": "_hub_migrations",
+          "migrations_dir": "server/db/migrations"
+        }
+      ]
+    }
+  }
 }
