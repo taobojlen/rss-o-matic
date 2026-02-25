@@ -36,6 +36,9 @@ import { generateParserConfig } from "~/server/utils/ai";
 const VALID_CONFIG = {
   unsuitable: false,
   unsuitableReason: "",
+  snapshotSuitable: false,
+  contentSelector: "",
+  suggestedTitle: "",
   itemSelector: ".item",
   feed: { title: "Feed" },
   fields: {
@@ -192,6 +195,9 @@ describe("generateParserConfig", () => {
     const unsuitableResponse = {
       unsuitable: true,
       unsuitableReason: "This appears to be a single blog post, not a listing page",
+      snapshotSuitable: false,
+      contentSelector: "",
+      suggestedTitle: "",
       feed: { title: "Placeholder" },
       itemSelector: "div",
       fields: {
@@ -214,6 +220,39 @@ describe("generateParserConfig", () => {
       expect(result.reason).toBe(
         "This appears to be a single blog post, not a listing page"
       );
+      expect(result.snapshotSuitable).toBe(false);
+    }
+  });
+
+  it("returns snapshot suitability info when page is unsuitable but monitorable", async () => {
+    const unsuitableButMonitorable = {
+      unsuitable: true,
+      unsuitableReason: "This is a single updates page, not a listing",
+      snapshotSuitable: true,
+      contentSelector: "main",
+      suggestedTitle: "Site Updates",
+      feed: { title: "Placeholder" },
+      itemSelector: "div",
+      fields: {
+        title: { selector: "h1" },
+        link: { selector: "a", attr: "href" },
+      },
+    };
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(unsuitableButMonitorable) } }],
+    });
+
+    const result = await generateParserConfig(
+      "<html></html>",
+      "https://example.com/updates",
+      "key",
+      "model"
+    );
+    expect(result.unsuitable).toBe(true);
+    if (result.unsuitable) {
+      expect(result.snapshotSuitable).toBe(true);
+      expect(result.contentSelector).toBe("main");
+      expect(result.suggestedTitle).toBe("Site Updates");
     }
   });
 

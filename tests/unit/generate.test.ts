@@ -315,7 +315,7 @@ describe("POST /api/generate", () => {
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
 
-  it("returns unsuitable when AI flags page as unsuitable", async () => {
+  it("returns unsuitable when AI flags page as unsuitable and not snapshot-suitable", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com" });
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><body><h1>Welcome</h1></body></html>");
@@ -324,6 +324,7 @@ describe("POST /api/generate", () => {
     mockGenerateParserConfig.mockResolvedValue({
       unsuitable: true,
       reason: "This appears to be a landing page with no repeating content",
+      snapshotSuitable: false,
     });
 
     const handler = await import("~/server/api/generate.post").then(
@@ -335,7 +336,35 @@ describe("POST /api/generate", () => {
       type: "unsuitable",
       reason: "This appears to be a landing page with no repeating content",
     });
-    // Should NOT parse or save
+    expect(mockParseHtml).not.toHaveBeenCalled();
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("returns snapshot_available when AI flags page as unsuitable but snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Updates here</main>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: true,
+      reason: "This is a single updates page, not a listing",
+      snapshotSuitable: true,
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: "This is a single updates page, not a listing",
+      contentSelector: "main",
+      suggestedTitle: "Example Updates",
+    });
     expect(mockParseHtml).not.toHaveBeenCalled();
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
@@ -458,6 +487,7 @@ describe("POST /api/generate", () => {
       mockGenerateParserConfig.mockResolvedValue({
         unsuitable: true,
         reason: "Landing page",
+        snapshotSuitable: false,
       });
 
       const handler = await import("~/server/api/generate.post").then(
@@ -660,6 +690,7 @@ describe("POST /api/generate", () => {
       mockGenerateParserConfig.mockResolvedValue({
         unsuitable: true,
         reason: "Landing page",
+        snapshotSuitable: false,
       });
 
       const handler = await import("~/server/api/generate.post").then((m) => m.default);

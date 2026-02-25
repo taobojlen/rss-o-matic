@@ -6,7 +6,13 @@ import { usePostHogClient } from "./posthog";
 
 export type AiParserResult =
   | { unsuitable: false; config: ParserConfig }
-  | { unsuitable: true; reason: string };
+  | {
+      unsuitable: true;
+      reason: string;
+      snapshotSuitable: boolean;
+      contentSelector?: string;
+      suggestedTitle?: string;
+    };
 
 const logger = consola.withTag("ai");
 
@@ -30,6 +36,9 @@ const PARSER_CONFIG_SCHEMA = {
   properties: {
     unsuitable: { type: "boolean" },
     unsuitableReason: { type: "string" },
+    snapshotSuitable: { type: "boolean" },
+    contentSelector: { type: "string" },
+    suggestedTitle: { type: "string" },
     feed: {
       type: "object",
       properties: {
@@ -56,7 +65,7 @@ const PARSER_CONFIG_SCHEMA = {
       additionalProperties: false,
     },
   },
-  required: ["unsuitable", "unsuitableReason", "feed", "itemSelector", "fields"],
+  required: ["unsuitable", "unsuitableReason", "snapshotSuitable", "contentSelector", "suggestedTitle", "feed", "itemSelector", "fields"],
   additionalProperties: false,
 };
 
@@ -73,6 +82,10 @@ If the page IS suitable, set "unsuitable" to false and "unsuitableReason" to an 
 
 Example: for a page with <ul class="PostList-module__abc123__list"><li class="PostList-module__abc123__item"><a href="/post/1"><span>Title</span><time>Jan 1</time></a></li>...</ul>, the output should be:
 {"unsuitable":false,"unsuitableReason":"","feed":{"title":"My Blog"},"itemSelector":"[class*='PostList'][class*='list'] > li","fields":{"title":{"selector":"span"},"link":{"selector":"a","attr":"href"},"pubDate":{"selector":"time"}}}
+
+Additionally, assess whether this page would be suitable for CHANGE MONITORING. A page is suitable for change monitoring if and only if it has a main content area that is likely to be updated over time (e.g., an updates/changelog page, a status page, a blog post that gets edited). Even if the page has no repeating items, it may still be suitable for change monitoring.
+
+Set "snapshotSuitable" to true if and only if the page is suitable for change monitoring. If true, set "contentSelector" to a CSS selector targeting the main content area (excluding nav, header, footer, sidebar), and "suggestedTitle" to a descriptive feed title. If false, set "contentSelector" and "suggestedTitle" to empty strings. Pages like login forms, static landing pages, web stores, or pages with no meaningful content to track should NOT be marked as snapshot-suitable.
 
 Rules:
 1. itemSelector MUST match multiple elements (the repeating items).
@@ -163,7 +176,19 @@ export async function generateParserConfig(
 
   const raw = parsed as Record<string, unknown>;
   if (raw.unsuitable === true && typeof raw.unsuitableReason === "string") {
-    return { unsuitable: true, reason: raw.unsuitableReason };
+    return {
+      unsuitable: true,
+      reason: raw.unsuitableReason,
+      snapshotSuitable: raw.snapshotSuitable === true,
+      contentSelector:
+        typeof raw.contentSelector === "string" && raw.contentSelector
+          ? raw.contentSelector
+          : undefined,
+      suggestedTitle:
+        typeof raw.suggestedTitle === "string" && raw.suggestedTitle
+          ? raw.suggestedTitle
+          : undefined,
+    };
   }
 
   return { unsuitable: false, config: validateParserConfig(parsed) };

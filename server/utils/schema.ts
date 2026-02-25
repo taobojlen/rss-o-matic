@@ -60,10 +60,16 @@ export interface DiscoveredFeed {
   feedType: "rss" | "atom" | "json";
 }
 
+export interface SnapshotConfig {
+  contentSelector: string;
+  feedTitle: string;
+}
+
 export interface FeedRecord {
   id: string;
   url: string;
   title: string | null;
+  type: "selector" | "snapshot";
   parser_config: string;
   created_at: string;
   updated_at: string;

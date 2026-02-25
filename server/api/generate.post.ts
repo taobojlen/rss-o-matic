@@ -105,6 +105,15 @@ export default defineEventHandler(async (event) => {
       }
 
       if (aiResult.unsuitable) {
+        if (aiResult.snapshotSuitable && aiResult.contentSelector) {
+          capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+          return {
+            type: "snapshot_available" as const,
+            reason: aiResult.reason,
+            contentSelector: aiResult.contentSelector,
+            suggestedTitle: aiResult.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+          };
+        }
         capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
         return {
           type: "unsuitable" as const,

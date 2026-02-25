@@ -1,4 +1,4 @@
-import { count, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte, notInArray } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 import type { FeedRecord } from "./schema";
 
@@ -6,13 +6,15 @@ export async function saveFeed(
   id: string,
   url: string,
   title: string | null,
-  parserConfig: string
+  parserConfig: string,
+  type: "selector" | "snapshot" = "selector"
 ): Promise<void> {
   const now = new Date().toISOString();
   await db.insert(schema.feeds).values({
     id,
     url,
     title,
+    type,
     parserConfig,
     createdAt: now,
     updatedAt: now,
@@ -31,6 +33,7 @@ export async function getFeedByUrl(url: string): Promise<FeedRecord | null> {
     id: row.id,
     url: row.url,
     title: row.title,
+    type: (row.type as "selector" | "snapshot") ?? "selector",
     parser_config: row.parserConfig,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -48,6 +51,7 @@ export async function getRecentFeeds(limit: number = 5): Promise<FeedRecord[]> {
     id: row.id,
     url: row.url,
     title: row.title,
+    type: (row.type as "selector" | "snapshot") ?? "selector",
     parser_config: row.parserConfig,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -90,6 +94,7 @@ export async function getPopularFeeds(
       id: schema.feeds.id,
       url: schema.feeds.url,
       title: schema.feeds.title,
+      type: schema.feeds.type,
       parserConfig: schema.feeds.parserConfig,
       createdAt: schema.feeds.createdAt,
       updatedAt: schema.feeds.updatedAt,
@@ -106,6 +111,7 @@ export async function getPopularFeeds(
     id: row.id,
     url: row.url,
     title: row.title,
+    type: (row.type as "selector" | "snapshot") ?? "selector",
     parser_config: row.parserConfig,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
@@ -125,8 +131,112 @@ export async function getFeed(id: string): Promise<FeedRecord | null> {
     id: row.id,
     url: row.url,
     title: row.title,
+    type: (row.type as "selector" | "snapshot") ?? "selector",
     parser_config: row.parserConfig,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };
+}
+
+// --- Snapshots ---
+
+export async function getLatestSnapshot(feedId: string) {
+  const rows = await db
+    .select()
+    .from(schema.snapshots)
+    .where(eq(schema.snapshots.feedId, feedId))
+    .orderBy(desc(schema.snapshots.capturedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function saveSnapshot(
+  feedId: string,
+  contentText: string,
+  contentHash: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.insert(schema.snapshots).values({
+    feedId,
+    contentText,
+    contentHash,
+    capturedAt: now,
+  });
+}
+
+export async function pruneSnapshots(
+  feedId: string,
+  keep: number = 3
+): Promise<void> {
+  const toKeep = await db
+    .select({ id: schema.snapshots.id })
+    .from(schema.snapshots)
+    .where(eq(schema.snapshots.feedId, feedId))
+    .orderBy(desc(schema.snapshots.capturedAt))
+    .limit(keep);
+
+  if (toKeep.length < keep) return;
+
+  const keepIds = toKeep.map((r) => r.id);
+  await db
+    .delete(schema.snapshots)
+    .where(
+      and(
+        eq(schema.snapshots.feedId, feedId),
+        notInArray(schema.snapshots.id, keepIds)
+      )
+    );
+}
+
+// --- Feed Items (for snapshot feeds) ---
+
+export async function getFeedItems(feedId: string, limit: number = 50) {
+  return db
+    .select()
+    .from(schema.feedItems)
+    .where(eq(schema.feedItems.feedId, feedId))
+    .orderBy(desc(schema.feedItems.detectedAt))
+    .limit(limit);
+}
+
+export async function saveFeedItem(
+  feedId: string,
+  title: string,
+  link: string,
+  description: string | null,
+  contentHash: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.insert(schema.feedItems).values({
+    feedId,
+    title,
+    link,
+    description,
+    contentHash,
+    detectedAt: now,
+  });
+}
+
+export async function pruneFeedItems(
+  feedId: string,
+  keep: number = 50
+): Promise<void> {
+  const toKeep = await db
+    .select({ id: schema.feedItems.id })
+    .from(schema.feedItems)
+    .where(eq(schema.feedItems.feedId, feedId))
+    .orderBy(desc(schema.feedItems.detectedAt))
+    .limit(keep);
+
+  if (toKeep.length < keep) return;
+
+  const keepIds = toKeep.map((r) => r.id);
+  await db
+    .delete(schema.feedItems)
+    .where(
+      and(
+        eq(schema.feedItems.feedId, feedId),
+        notInArray(schema.feedItems.id, keepIds)
+      )
+    );
 }
