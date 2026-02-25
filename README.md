@@ -1,6 +1,6 @@
 # RSS-O-Matic
 
-AI-powered RSS feed generator. Paste any website URL and get an RSS feed. Built with [Nuxt](https://nuxt.com) and [NuxtHub](https://hub.nuxt.com) for Cloudflare Workers.
+AI-powered Atom feed generator. Paste any website URL and get an Atom feed. Built with [Nuxt](https://nuxt.com) and [NuxtHub](https://hub.nuxt.com) for Cloudflare Workers.
 
 ## Setup
 

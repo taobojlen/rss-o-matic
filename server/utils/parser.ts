@@ -16,7 +16,7 @@ export function parseHtml(
 ): ExtractedFeed {
   const $ = cheerio.load(html);
 
-  const title = resolveFieldOrLiteral($, $.root(), config.feed.title, "RSS Feed");
+  const title = resolveFieldOrLiteral($, $.root(), config.feed.title, "Atom Feed");
   const description = config.feed.description
     ? resolveFieldOrLiteral($, $.root(), config.feed.description, "")
     : "";

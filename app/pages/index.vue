@@ -203,7 +203,7 @@ function handleReset() {
 
 <template>
   <p v-if="step === 'idle' || step === 'loading'" class="hero-description">
-    Got a favorite website with no RSS feed? Just punch in the URL and our
+    Got a favorite website with no RSS/Atom feed? Just punch in the URL and our
     robots will manufacture one for you.
   </p>
 

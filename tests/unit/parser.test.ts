@@ -163,6 +163,6 @@ describe("parseHtml", () => {
       feed: { title: { selector: ".nonexistent" } },
     };
     const feed = parseHtml(SAMPLE_HTML, config, "https://example.com");
-    expect(feed.title).toBe("RSS Feed");
+    expect(feed.title).toBe("Atom Feed");
   });
 });
