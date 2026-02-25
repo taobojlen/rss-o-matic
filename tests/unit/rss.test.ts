@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateRssXml } from "~/server/utils/rss";
+import { generateRssXml, generateNewsletterRssXml } from "~/server/utils/rss";
 import type { ExtractedFeed } from "~/server/utils/schema";
 
 const FEED: ExtractedFeed = {
@@ -152,5 +152,99 @@ describe("generateRssXml", () => {
   it("includes xml-stylesheet for pretty rendering", () => {
     const xml = generateRssXml(FEED, SELF_URL);
     expect(xml).toContain("pretty-feed-v3.xsl");
+  });
+});
+
+describe("generateNewsletterRssXml", () => {
+  const NEWSLETTER_ITEMS = [
+    {
+      title: "Weekly Digest #42",
+      link: "https://rss-o-matic.com/newsletter/abc/item1",
+      guid: "msg-123@mail.example.com",
+      description: "This week in tech...",
+      pubDate: "2025-06-15T10:00:00.000Z",
+      author: "Alice",
+    },
+    {
+      title: "Issue #43",
+      link: "https://rss-o-matic.com/newsletter/abc/item2",
+      guid: "item2",
+    },
+  ];
+
+  it("produces valid RSS 2.0 XML", () => {
+    const xml = generateNewsletterRssXml(
+      "My Newsletter",
+      "A cool newsletter",
+      "https://rss-o-matic.com/feed/abc.xml",
+      SELF_URL,
+      NEWSLETTER_ITEMS
+    );
+    expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+    expect(xml).toContain('<rss version="2.0"');
+  });
+
+  it("uses isPermaLink=false for guid", () => {
+    const xml = generateNewsletterRssXml(
+      "My Newsletter",
+      "Desc",
+      "https://example.com",
+      SELF_URL,
+      NEWSLETTER_ITEMS
+    );
+    expect(xml).toContain('<guid isPermaLink="false">msg-123@mail.example.com</guid>');
+    expect(xml).toContain('<guid isPermaLink="false">item2</guid>');
+  });
+
+  it("includes channel title and description", () => {
+    const xml = generateNewsletterRssXml(
+      "My Newsletter",
+      "A cool newsletter",
+      "https://example.com",
+      SELF_URL,
+      NEWSLETTER_ITEMS
+    );
+    expect(xml).toContain("<title>My Newsletter</title>");
+    expect(xml).toContain("<description>A cool newsletter</description>");
+  });
+
+  it("renders items with title and link", () => {
+    const xml = generateNewsletterRssXml(
+      "Test",
+      "Desc",
+      "https://example.com",
+      SELF_URL,
+      NEWSLETTER_ITEMS
+    );
+    expect(xml).toContain("<title>Weekly Digest #42</title>");
+    expect(xml).toContain("<link>https://rss-o-matic.com/newsletter/abc/item1</link>");
+  });
+
+  it("renders optional fields when present", () => {
+    const xml = generateNewsletterRssXml(
+      "Test",
+      "Desc",
+      "https://example.com",
+      SELF_URL,
+      NEWSLETTER_ITEMS
+    );
+    expect(xml).toContain("<description>This week in tech...</description>");
+    expect(xml).toContain("<author>Alice</author>");
+    expect(xml).toMatch(/<pubDate>Sun, 15 Jun 2025/);
+  });
+
+  it("omits optional fields when absent", () => {
+    const xml = generateNewsletterRssXml(
+      "Test",
+      "Desc",
+      "https://example.com",
+      SELF_URL,
+      [{ title: "Bare", link: "https://example.com/1", guid: "bare-1" }]
+    );
+    // The item section should not contain description/author/pubDate
+    const itemSection = xml.split("<item>")[1]?.split("</item>")[0] || "";
+    expect(itemSection).not.toContain("<description>");
+    expect(itemSection).not.toContain("<author>");
+    expect(itemSection).not.toContain("<pubDate>");
   });
 });
