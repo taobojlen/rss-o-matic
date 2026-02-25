@@ -38,7 +38,6 @@ interface PopularFeed {
   title: string | null
   url: string
   feedUrl: string
-  fetchCount: number
 }
 
 type AppStep = 'idle' | 'loading' | 'preview' | 'existing_feed' | 'unsuitable' | 'error'

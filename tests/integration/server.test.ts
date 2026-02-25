@@ -96,7 +96,6 @@ describe("server integration tests", async () => {
           title: string | null;
           url: string;
           feedUrl: string;
-          fetchCount: number;
         }[]
       >("/api/feeds/popular");
 
@@ -104,8 +103,6 @@ describe("server integration tests", async () => {
         expect(feed).toHaveProperty("id");
         expect(feed).toHaveProperty("url");
         expect(feed).toHaveProperty("feedUrl");
-        expect(feed).toHaveProperty("fetchCount");
-        expect(typeof feed.fetchCount).toBe("number");
         expect(feed.feedUrl).toMatch(/^\/feed\/.+\.xml$/);
       }
     });

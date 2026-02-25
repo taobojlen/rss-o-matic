@@ -5,6 +5,5 @@ export default defineEventHandler(async () => {
     title: feed.title,
     url: feed.url,
     feedUrl: `/feed/${feed.id}.xml`,
-    fetchCount: feed.fetch_count,
   }));
 });
