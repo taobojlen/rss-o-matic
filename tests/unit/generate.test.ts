@@ -81,7 +81,8 @@ describe("POST /api/generate", () => {
     expect(result).toEqual({
       type: "generated",
       feedId: "existingId123",
-      feedUrl: "/feed/existingId123.xml",
+      feedUrl: "/feed/existingId123.atom",
+      rssUrl: "/feed/existingId123.rss",
       preview: cachedPreview,
       parserConfig: { itemSelector: ".post" },
     });

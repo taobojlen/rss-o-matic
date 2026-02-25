@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
     feedId: feed.id,
     url: feed.url,
     title: feed.title,
-    feedUrl: `/feed/${feed.id}.xml`,
+    feedUrl: `/feed/${feed.id}.atom`,
+    rssUrl: `/feed/${feed.id}.rss`,
     parserConfig: JSON.parse(feed.parser_config),
     createdAt: feed.created_at,
   };
