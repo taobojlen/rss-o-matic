@@ -563,15 +563,13 @@ a.btn {
 /* ============================================================
    RETRO DIVIDERS — Diamond on a seam line
    ============================================================ */
-.popular-feeds,
-.recent-feeds,
+.feeds-columns,
 .site-footer {
   position: relative;
   border-top: 2px solid #a0c4be;
 }
 
-.popular-feeds::before,
-.recent-feeds::before,
+.feeds-columns::before,
 .site-footer::before {
   content: '◆';
   position: absolute;
@@ -586,13 +584,26 @@ a.btn {
 }
 
 /* ============================================================
-   POPULAR FEEDS
+   FEEDS COLUMNS — Side-by-side on desktop, stacked on mobile
    ============================================================ */
-.popular-feeds {
+.feeds-columns {
   margin-top: 3rem;
   padding-top: 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
 }
 
+@media (max-width: 600px) {
+  .feeds-columns {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+/* ============================================================
+   POPULAR FEEDS
+   ============================================================ */
 .popular-feeds-list {
   list-style: none;
 }
@@ -619,41 +630,19 @@ a.btn {
   text-decoration: underline;
 }
 
-.popular-feed-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 0.15rem;
-}
-
 .popular-feed-source {
+  display: block;
   font-size: 0.8rem;
   color: #6a8882;
+  margin-top: 0.15rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.popular-feed-count {
-  font-size: 0.75rem;
-  color: #fff;
-  background: #18665c;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-weight: 700;
-  white-space: nowrap;
-  margin-left: 0.5rem;
 }
 
 /* ============================================================
    RECENT FEEDS
    ============================================================ */
-.recent-feeds {
-  margin-top: 3rem;
-  padding-top: 2rem;
-}
 
 .recent-feeds-list {
   list-style: none;

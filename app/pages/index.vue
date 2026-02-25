@@ -354,32 +354,31 @@ function handleReset() {
       </div>
     </div>
 
-    <section v-if="popularFeeds?.length" class="popular-feeds">
-      <h2 class="section-label">Top of the Dial</h2>
-      <ul class="popular-feeds-list">
-        <li v-for="feed in popularFeeds" :key="feed.id">
-          <a :href="feed.feedUrl" class="popular-feed-title">
-            {{ feed.title || feed.url }}
-          </a>
-          <span class="popular-feed-meta">
+    <div class="feeds-columns">
+      <section v-if="popularFeeds?.length" class="popular-feeds">
+        <h2 class="section-label">Popular Feeds</h2>
+        <ul class="popular-feeds-list">
+          <li v-for="feed in popularFeeds" :key="feed.id">
+            <a :href="feed.feedUrl" class="popular-feed-title">
+              {{ feed.title || feed.url }}
+            </a>
             <span class="popular-feed-source">{{ feed.url }}</span>
-            <span class="popular-feed-count">{{ feed.fetchCount }} tune-ins</span>
-          </span>
-        </li>
-      </ul>
-    </section>
+          </li>
+        </ul>
+      </section>
 
-    <section v-if="recentFeeds?.length" class="recent-feeds">
-      <h2 class="section-label">Recent Feeds</h2>
-      <ul class="recent-feeds-list">
-        <li v-for="feed in recentFeeds" :key="feed.id">
-          <a :href="feed.feedUrl" class="recent-feed-title">
-            {{ feed.title || feed.url }}
-          </a>
-          <span class="recent-feed-source">{{ feed.url }}</span>
-        </li>
-      </ul>
-    </section>
+      <section v-if="recentFeeds?.length" class="recent-feeds">
+        <h2 class="section-label">Recent Feeds</h2>
+        <ul class="recent-feeds-list">
+          <li v-for="feed in recentFeeds" :key="feed.id">
+            <a :href="feed.feedUrl" class="recent-feed-title">
+              {{ feed.title || feed.url }}
+            </a>
+            <span class="recent-feed-source">{{ feed.url }}</span>
+          </li>
+        </ul>
+      </section>
+    </div>
 
     <footer class="site-footer">
       <p>Est. 2026 | Assembled by <a href="https://btao.org/" target="_blank">Tao</a> | Contribute on <a href="https://github.com/taobojlen/rss-o-matic" target="_blank" rel="noopener noreferrer">GitHub</a></p>
