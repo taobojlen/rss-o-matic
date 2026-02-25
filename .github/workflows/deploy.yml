@@ -66,32 +66,21 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Bundle and patch config for preview
+      - name: Patch config for preview
         run: |
-          WRANGLER_CONFIG=".output/server/wrangler.json"
-          WRANGLER_BUNDLE=".output/wrangler-bundle"
-
-          # Pre-bundle into a single JS file (mirrors what upload-sourcemaps.sh
-          # does for production — raw --no-bundle with Nitro's multi-chunk output
-          # doesn't work because wrangler fails to resolve chunk imports)
-          rm -rf "$WRANGLER_BUNDLE"
-          npx wrangler deploy --dry-run --outdir "$(pwd)/$WRANGLER_BUNDLE" --config "$WRANGLER_CONFIG"
-
-          # Point main at the bundled entry file
-          ENTRY_FILE=$(basename "$(ls "$WRANGLER_BUNDLE"/*.js | head -1)")
-          sed -i "s|\"main\": \"./index.mjs\"|\"main\": \"../wrangler-bundle/$ENTRY_FILE\"|" "$WRANGLER_CONFIG"
+          # Disable no_bundle so wrangler bundles everything into a single file
+          # (Nitro's multi-chunk output with no_bundle=true doesn't work for new workers)
+          sed -i 's/"no_bundle": true/"no_bundle": false/' .output/server/wrangler.json
 
           # Patch name and bindings for preview environment
-          sed -i 's/"name": "rss-o-matic"/"name": "rss-o-matic-preview"/' "$WRANGLER_CONFIG"
-          sed -i 's/31ed3c46-030e-4448-b4ad-fe38e055cedf/007b6207-07d6-4fac-88fb-29714dd52d65/' "$WRANGLER_CONFIG"
-          sed -i 's/405d94875ef249ff866a5314e032ff8f/f63d2ce7303846acb066a2e1c8022e09/' "$WRANGLER_CONFIG"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          sed -i 's/"name": "rss-o-matic"/"name": "rss-o-matic-preview"/' .output/server/wrangler.json
+          sed -i 's/31ed3c46-030e-4448-b4ad-fe38e055cedf/007b6207-07d6-4fac-88fb-29714dd52d65/' .output/server/wrangler.json
+          sed -i 's/405d94875ef249ff866a5314e032ff8f/f63d2ce7303846acb066a2e1c8022e09/' .output/server/wrangler.json
       - name: Deploy preview to Cloudflare Workers
         id: deploy
         run: |
-          npx wrangler deploy --no-bundle --config .output/server/wrangler.json 2>&1 | tee /tmp/deploy-output.txt
+          set -o pipefail
+          npx wrangler deploy --config .output/server/wrangler.json 2>&1 | tee /tmp/deploy-output.txt
           PREVIEW_URL=$(grep -oP 'https://[^\s]+\.workers\.dev' /tmp/deploy-output.txt | head -1)
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
         env:
