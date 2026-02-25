@@ -64,8 +64,21 @@ export default defineEventHandler(async (event) => {
     "snapshot"
   );
 
-  // Save initial snapshot (baseline)
+  // Save initial snapshot
   await saveSnapshot(feedId, contentText, contentHash);
+
+  // Create initial feed item so the feed isn't empty
+  const now = new Date();
+  const itemTitle = `Initial snapshot — ${now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+  const itemDescription =
+    contentText.length > 500
+      ? contentText.slice(0, 497) + "..."
+      : contentText;
+  await saveFeedItem(feedId, itemTitle, normalized, itemDescription, contentHash);
 
   const feedUrl = `/feed/${feedId}.xml`;
   capturePostHogEvent(event, "feed_generated", {
@@ -82,7 +95,13 @@ export default defineEventHandler(async (event) => {
       title: snapshotConfig.feedTitle,
       description: `Monitoring ${normalized} for changes`,
       link: normalized,
-      items: [],
+      items: [
+        {
+          title: itemTitle,
+          link: normalized,
+          description: itemDescription,
+        },
+      ],
     },
   };
 });

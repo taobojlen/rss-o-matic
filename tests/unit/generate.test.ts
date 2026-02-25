@@ -369,6 +369,44 @@ describe("POST /api/generate", () => {
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
 
+  it("falls back to snapshot_available immediately when selectors fail and page is snapshot-suitable", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
+    mockDetectExistingFeeds.mockReturnValue([]);
+    mockTrimHtml.mockReturnValue("<main>Updates here</main>");
+    // AI says unsuitable=false (thinks it can extract items) but also snapshotSuitable=true
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "article.update-entry", fields: { title: { selector: ".update-title" }, link: { selector: "a", attr: "href" } }, feed: { title: "o16g Updates" } },
+      snapshotSuitable: true,
+      contentSelector: ".updates-feed",
+      suggestedTitle: "o16g Updates",
+    });
+    // Selectors don't match anything
+    mockParseHtml.mockReturnValue({
+      title: "o16g Updates",
+      description: "",
+      link: "https://example.com/updates",
+      items: [],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const result = await handler({} as any);
+
+    expect(result).toEqual({
+      type: "snapshot_available",
+      reason: expect.any(String),
+      contentSelector: ".updates-feed",
+      suggestedTitle: "o16g Updates",
+    });
+    expect(mockSaveFeed).not.toHaveBeenCalled();
+    // Should NOT retry — snapshot fallback fires on first failed parse
+    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
+  });
+
   it("skips feed detection for URLs already in DB", async () => {
     const existingFeed = {
       id: "existingId123",

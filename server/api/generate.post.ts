@@ -81,6 +81,7 @@ export default defineEventHandler(async (event) => {
     const MAX_SELECTOR_RETRIES = 2;
     let parserConfig!: Parameters<typeof parseHtml>[1];
     let preview!: ReturnType<typeof parseHtml>;
+    let lastSnapshotInfo: { contentSelector?: string; suggestedTitle?: string; snapshotSuitable: boolean } | null = null;
     const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
 
     for (let attempt = 0; attempt <= MAX_SELECTOR_RETRIES; attempt++) {
@@ -102,6 +103,15 @@ export default defineEventHandler(async (event) => {
           continue;
         }
         throw err;
+      }
+
+      // Track snapshot info from the AI for fallback
+      if (aiResult.snapshotSuitable && aiResult.contentSelector) {
+        lastSnapshotInfo = {
+          snapshotSuitable: true,
+          contentSelector: aiResult.contentSelector,
+          suggestedTitle: aiResult.suggestedTitle,
+        };
       }
 
       if (aiResult.unsuitable) {
@@ -126,6 +136,18 @@ export default defineEventHandler(async (event) => {
 
       if (preview.items.length > 0) {
         break;
+      }
+
+      // If selectors returned nothing but AI already flagged the page as
+      // snapshot-suitable, offer that immediately instead of wasting retries
+      if (lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
+        capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+        return {
+          type: "snapshot_available" as const,
+          reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
+          contentSelector: lastSnapshotInfo.contentSelector,
+          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+        };
       }
 
       if (attempt < MAX_SELECTOR_RETRIES) {

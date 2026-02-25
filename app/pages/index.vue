@@ -369,9 +369,25 @@ function handleReset() {
       <template v-if="generatedData.feedType === 'snapshot'">
         <p class="section-label">Monitoring station tuned in!</p>
         <p class="unsuitable-hint">
-          We've taken a first snapshot of this page. Next time the content changes
-          and your reader checks in, you'll get a fresh item in the feed. Sit tight!
+          We've captured the current state of this page. Whenever the content
+          changes and your reader checks in, you'll get a fresh item in the feed.
         </p>
+        <ul v-if="generatedData.preview.items.length" class="items-list">
+          <li v-for="(item, i) in generatedData.preview.items" :key="i">
+            <h3>
+              <a :href="item.link" target="_blank" rel="noopener noreferrer">
+                {{ item.title }}
+              </a>
+            </h3>
+            <div v-if="item.description" class="desc">
+              {{
+                item.description.length > 200
+                  ? item.description.slice(0, 200) + '...'
+                  : item.description
+              }}
+            </div>
+          </li>
+        </ul>
       </template>
 
       <template v-else>

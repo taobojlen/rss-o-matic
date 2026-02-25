@@ -13,10 +13,13 @@ const mockCreateError = vi.fn((opts: any) => {
   return err;
 });
 
+const mockSaveFeedItem = vi.fn();
+
 vi.stubGlobal("getFeedByUrl", mockGetFeedByUrl);
 vi.stubGlobal("fetchPage", mockFetchPage);
 vi.stubGlobal("saveFeed", mockSaveFeed);
 vi.stubGlobal("saveSnapshot", mockSaveSnapshot);
+vi.stubGlobal("saveFeedItem", mockSaveFeedItem);
 vi.stubGlobal("normalizeUrl", mockNormalizeUrl);
 vi.stubGlobal("capturePostHogEvent", mockCapturePostHogEvent);
 vi.stubGlobal("createError", mockCreateError);
@@ -33,7 +36,7 @@ describe("POST /api/generate-snapshot", () => {
     mockNormalizeUrl.mockImplementation((url: string) => url);
   });
 
-  it("creates a snapshot feed and saves initial snapshot", async () => {
+  it("creates a snapshot feed with initial snapshot and feed item", async () => {
     mockReadBody.mockResolvedValue({
       url: "https://example.com/updates",
       contentSelector: "main",
@@ -53,8 +56,10 @@ describe("POST /api/generate-snapshot", () => {
     expect(result.feedType).toBe("snapshot");
     expect(result.feedId).toBe("snap12345678");
     expect(result.feedUrl).toBe("/feed/snap12345678.xml");
-    expect(result.preview.items).toEqual([]);
     expect(result.preview.title).toBe("Example Updates");
+    // Should include an initial item in the preview
+    expect(result.preview.items).toHaveLength(1);
+    expect(result.preview.items[0].link).toBe("https://example.com/updates");
 
     expect(mockSaveFeed).toHaveBeenCalledWith(
       "snap12345678",
@@ -65,6 +70,14 @@ describe("POST /api/generate-snapshot", () => {
     );
     expect(mockSaveSnapshot).toHaveBeenCalledWith(
       "snap12345678",
+      expect.any(String),
+      expect.stringMatching(/^[0-9a-f]{64}$/)
+    );
+    // Should save an initial feed item
+    expect(mockSaveFeedItem).toHaveBeenCalledWith(
+      "snap12345678",
+      expect.stringContaining("Initial snapshot"),
+      "https://example.com/updates",
       expect.any(String),
       expect.stringMatching(/^[0-9a-f]{64}$/)
     );

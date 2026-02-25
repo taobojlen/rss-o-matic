@@ -5,7 +5,13 @@ import { validateParserConfig } from "./validate";
 import { usePostHogClient } from "./posthog";
 
 export type AiParserResult =
-  | { unsuitable: false; config: ParserConfig }
+  | {
+      unsuitable: false;
+      config: ParserConfig;
+      snapshotSuitable: boolean;
+      contentSelector?: string;
+      suggestedTitle?: string;
+    }
   | {
       unsuitable: true;
       reason: string;
@@ -191,5 +197,17 @@ export async function generateParserConfig(
     };
   }
 
-  return { unsuitable: false, config: validateParserConfig(parsed) };
+  return {
+    unsuitable: false,
+    config: validateParserConfig(parsed),
+    snapshotSuitable: raw.snapshotSuitable === true,
+    contentSelector:
+      typeof raw.contentSelector === "string" && raw.contentSelector
+        ? raw.contentSelector
+        : undefined,
+    suggestedTitle:
+      typeof raw.suggestedTitle === "string" && raw.suggestedTitle
+        ? raw.suggestedTitle
+        : undefined,
+  };
 }
