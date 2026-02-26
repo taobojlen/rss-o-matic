@@ -227,6 +227,7 @@ function handleReset() {
     >
       {{ step === 'loading' ? 'Generating...' : 'Generate Feed' }}
     </button>
+    <p class="form-hint">Heads up: generated feeds are listed on the front page for all to enjoy!</p>
   </form>
 
   <div v-if="step === 'loading'" class="progress-panel">
