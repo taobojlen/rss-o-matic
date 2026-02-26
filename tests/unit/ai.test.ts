@@ -31,7 +31,7 @@ vi.mock("@posthog/ai/openai", () => ({
   OpenAI: MockOpenAI,
 }));
 
-import { generateParserConfig } from "~/server/utils/ai";
+import { generateParserConfig, executeTestSelector } from "~/server/utils/ai";
 
 const VALID_CONFIG = {
   unsuitable: false,
@@ -272,33 +272,7 @@ describe("generateParserConfig", () => {
     expect(params.messages[0].content).toContain("https://example.com/blog");
   });
 
-  it("appends priorMessages after the initial prompt", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
-
-    const priorMessages = [
-      { role: "assistant" as const, content: '{"itemSelector":".bad"}' },
-      { role: "user" as const, content: "That didn't work, try again." },
-    ];
-
-    await generateParserConfig(
-      "<html></html>",
-      "https://example.com",
-      "key",
-      "model",
-      priorMessages
-    );
-
-    const params = mockCreate.mock.calls[0][0];
-    expect(params.messages).toHaveLength(3);
-    expect(params.messages[0].role).toBe("user");
-    expect(params.messages[0].content).toContain("https://example.com");
-    expect(params.messages[1]).toEqual({ role: "assistant", content: '{"itemSelector":".bad"}' });
-    expect(params.messages[2]).toEqual({ role: "user", content: "That didn't work, try again." });
-  });
-
-  it("sends single message when no priorMessages", async () => {
+  it("sends single user message as the initial prompt", async () => {
     mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
     });
@@ -379,6 +353,135 @@ describe("generateParserConfig", () => {
     }
   });
 
+  it("includes tools in the first API call", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.tools).toBeDefined();
+    expect(params.tools).toHaveLength(1);
+    expect(params.tools[0].function.name).toBe("test_selector");
+  });
+
+  it("executes tool calls and continues the loop", async () => {
+    // First call: model returns a tool call
+    mockCreate.mockResolvedValueOnce({
+      choices: [{
+        message: {
+          role: "assistant",
+          content: null,
+          tool_calls: [{
+            id: "call_1",
+            type: "function",
+            function: {
+              name: "test_selector",
+              arguments: JSON.stringify({ selector: ".item", context_selector: null, attr: null }),
+            },
+          }],
+        },
+      }],
+    });
+    // Second call: model returns text config
+    mockCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    const result = await generateParserConfig(
+      '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>',
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.unsuitable).toBe(false);
+    // Second call should include the tool result message
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const toolMsg = secondCallMessages.find((m: any) => m.role === "tool");
+    expect(toolMsg).toBeDefined();
+    expect(toolMsg.tool_call_id).toBe("call_1");
+  });
+
+  it("omits tools on the final iteration to force text output", async () => {
+    // First two calls return tool calls (iterations 0 and 1 of MAX_ITERATIONS=3)
+    for (let i = 0; i < 2; i++) {
+      mockCreate.mockResolvedValueOnce({
+        choices: [{
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [{
+              id: `call_${i}`,
+              type: "function",
+              function: {
+                name: "test_selector",
+                arguments: JSON.stringify({ selector: ".item", context_selector: null, attr: null }),
+              },
+            }],
+          },
+        }],
+      });
+    }
+    // Third call (final iteration): model returns text
+    mockCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      '<div class="item"><h2>T</h2><a href="/1">L</a></div>',
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+    // First two calls should have tools
+    expect(mockCreate.mock.calls[0][0].tools).toBeDefined();
+    expect(mockCreate.mock.calls[1][0].tools).toBeDefined();
+    // Third call (last iteration) should NOT have tools
+    expect(mockCreate.mock.calls[2][0].tools).toBeUndefined();
+  });
+
+  it("returns immediately when model responds with text (no tool calls)", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    const result = await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(result.unsuitable).toBe(false);
+  });
+
+  it("prompt mentions the test_selector tool", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.messages[0].content).toContain("test_selector");
+  });
+
   it("passes PostHog tracking params", async () => {
     mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
@@ -395,5 +498,107 @@ describe("generateParserConfig", () => {
     expect(params.posthogDistinctId).toBe("rss-o-matic-server");
     expect(params.posthogCaptureImmediate).toBe(true);
     expect(params.posthogProperties).toEqual({ url: "https://example.com" });
+  });
+});
+
+describe("executeTestSelector", () => {
+  const TEST_HTML = `
+    <div class="list">
+      <div class="item">
+        <h2>Title One</h2>
+        <a href="/post/1">Read more</a>
+        <p>Description one</p>
+      </div>
+      <div class="item">
+        <h2>Title Two</h2>
+        <a href="/post/2">Read more</a>
+        <p>Description two</p>
+      </div>
+      <div class="item">
+        <h2>Title Three</h2>
+        <a href="/post/3">Read more</a>
+        <p>Description three</p>
+      </div>
+      <div class="item">
+        <h2>Title Four</h2>
+        <a href="/post/4">Read more</a>
+        <p>Description four</p>
+      </div>
+    </div>
+  `;
+
+  it("returns match count and outerHTML samples for standalone selector", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: ".item",
+      context_selector: null,
+      attr: null,
+    }));
+    expect(result.matchCount).toBe(4);
+    expect(result.samples).toHaveLength(3); // capped at 3
+    expect(result.samples[0]).toContain("Title One");
+  });
+
+  it("returns context matches and extracted text for context selector", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: "h2",
+      context_selector: ".item",
+      attr: null,
+    }));
+    expect(result.contextMatches).toBe(4);
+    expect(result.fieldFound).toBe("3/3");
+    expect(result.samples).toContain("Title One");
+    expect(result.samples).toContain("Title Two");
+    expect(result.samples).toContain("Title Three");
+  });
+
+  it("extracts attribute values when attr is specified", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: "a",
+      context_selector: ".item",
+      attr: "href",
+    }));
+    expect(result.contextMatches).toBe(4);
+    expect(result.samples).toContain("/post/1");
+    expect(result.samples).toContain("/post/2");
+  });
+
+  it("returns error for invalid CSS selector", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: "[[[invalid",
+      context_selector: null,
+      attr: null,
+    }));
+    expect(result.error).toBeDefined();
+  });
+
+  it("truncates long outerHTML samples to 300 chars", () => {
+    const longHtml = `<div class="item">${"x".repeat(500)}</div>`;
+    const result = JSON.parse(executeTestSelector(longHtml, {
+      selector: ".item",
+      context_selector: null,
+      attr: null,
+    }));
+    expect(result.samples[0].length).toBeLessThanOrEqual(300);
+  });
+
+  it("returns 0 matches for non-matching selector", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: ".nonexistent",
+      context_selector: null,
+      attr: null,
+    }));
+    expect(result.matchCount).toBe(0);
+    expect(result.samples).toHaveLength(0);
+  });
+
+  it("reports not-found for context fields that don't match", () => {
+    const result = JSON.parse(executeTestSelector(TEST_HTML, {
+      selector: ".nope",
+      context_selector: ".item",
+      attr: null,
+    }));
+    expect(result.contextMatches).toBe(4);
+    expect(result.fieldFound).toBe("0/3");
+    expect(result.samples).toEqual(["(not found)", "(not found)", "(not found)"]);
   });
 });

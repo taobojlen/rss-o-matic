@@ -79,102 +79,57 @@ export default defineEventHandler(async (event) => {
     // 3. Trim HTML for AI
     const trimmed = trimHtml(html);
 
-    // 4–6. Generate parser config via AI, with retry on failure
-    const MAX_SELECTOR_RETRIES = 2;
-    let parserConfig!: Parameters<typeof parseHtml>[1];
-    let preview!: ReturnType<typeof parseHtml>;
-    let lastSnapshotInfo: { contentSelector?: string; suggestedTitle?: string; snapshotSuitable: boolean } | null = null;
-    const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    // 4. Generate parser config via AI (uses an internal agentic tool-use loop)
+    const aiResult = await generateParserConfig(
+      trimmed,
+      normalized,
+      config.openrouterApiKey,
+      config.openrouterModel
+    );
 
-    for (let attempt = 0; attempt <= MAX_SELECTOR_RETRIES; attempt++) {
-      let aiResult;
-      try {
-        aiResult = await generateParserConfig(
-          trimmed,
-          normalized,
-          config.openrouterApiKey,
-          config.openrouterModel,
-          conversationHistory.length > 0 ? conversationHistory : undefined
-        );
-      } catch (err) {
-        if (attempt < MAX_SELECTOR_RETRIES && err instanceof Error) {
-          capturePostHogEvent(event, "selector_retry", { url: normalized, attempt: attempt + 1, reason: "invalid_css" });
-          conversationHistory.push(
-            { role: "user", content: `Your previous configuration was invalid: ${err.message}. Please try again with valid CSS selectors.` }
-          );
-          continue;
-        }
-        throw err;
-      }
-
-      // Track snapshot info from the AI for fallback
+    // 5. Handle unsuitable / snapshot-available results
+    if (aiResult.unsuitable) {
       if (aiResult.snapshotSuitable && aiResult.contentSelector) {
-        lastSnapshotInfo = {
-          snapshotSuitable: true,
-          contentSelector: aiResult.contentSelector,
-          suggestedTitle: aiResult.suggestedTitle,
-        };
-      }
-
-      if (aiResult.unsuitable) {
-        if (aiResult.snapshotSuitable && aiResult.contentSelector) {
-          capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
-          return {
-            type: "snapshot_available" as const,
-            reason: aiResult.reason,
-            contentSelector: aiResult.contentSelector,
-            suggestedTitle: aiResult.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
-          };
-        }
-        capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
-        return {
-          type: "unsuitable" as const,
-          reason: aiResult.reason,
-        };
-      }
-
-      parserConfig = aiResult.config;
-      preview = parseHtml(html, parserConfig, normalized);
-
-      if (preview.items.length > 1) {
-        break;
-      }
-
-      // A single matched item + snapshotSuitable likely means the AI matched
-      // the whole content block as one "item" — snapshot monitoring is better
-      if (preview.items.length === 1 && lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
         capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
         return {
           type: "snapshot_available" as const,
-          reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
-          contentSelector: lastSnapshotInfo.contentSelector,
-          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+          reason: aiResult.reason,
+          contentSelector: aiResult.contentSelector,
+          suggestedTitle: aiResult.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
         };
       }
+      capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
+      return {
+        type: "unsuitable" as const,
+        reason: aiResult.reason,
+      };
+    }
 
-      // 1 item without snapshot option is still a valid (if small) feed
-      if (preview.items.length === 1) {
-        break;
-      }
+    // 6. Parse HTML with the generated config
+    const parserConfig = aiResult.config;
+    const preview = parseHtml(html, parserConfig, normalized);
 
-      if (attempt < MAX_SELECTOR_RETRIES) {
-        capturePostHogEvent(event, "selector_retry", { url: normalized, attempt: attempt + 1, reason: "no_items" });
-        conversationHistory.push(
-          { role: "assistant", content: JSON.stringify(parserConfig) },
-          { role: "user", content: `Your configuration produced 0 results when applied to the page HTML. The itemSelector "${parserConfig.itemSelector}" did not match any elements, or the matched elements were missing required fields (title and link). Please analyze the HTML more carefully and try different CSS selectors.` }
-        );
-      }
+    // A single matched item + snapshotSuitable likely means the AI matched
+    // the whole content block as one "item" — snapshot monitoring is better
+    if (preview.items.length === 1 && aiResult.snapshotSuitable && aiResult.contentSelector) {
+      capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+      return {
+        type: "snapshot_available" as const,
+        reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
+        contentSelector: aiResult.contentSelector,
+        suggestedTitle: aiResult.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+      };
     }
 
     if (preview.items.length === 0) {
       // Fall back to snapshot monitoring if the AI flagged the page as suitable
-      if (lastSnapshotInfo?.snapshotSuitable && lastSnapshotInfo.contentSelector) {
+      if (aiResult.snapshotSuitable && aiResult.contentSelector) {
         capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
         return {
           type: "snapshot_available" as const,
           reason: "We couldn't find repeating items on this page, but it looks like it gets updated.",
-          contentSelector: lastSnapshotInfo.contentSelector,
-          suggestedTitle: lastSnapshotInfo.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
+          contentSelector: aiResult.contentSelector,
+          suggestedTitle: aiResult.suggestedTitle || `Changes to ${new URL(normalized).hostname}`,
         };
       }
 
