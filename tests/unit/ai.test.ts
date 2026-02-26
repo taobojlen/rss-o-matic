@@ -315,6 +315,70 @@ describe("generateParserConfig", () => {
     expect(params.messages[0].role).toBe("user");
   });
 
+  it("schema has no oneOf keyword", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
+    });
+
+    await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    const params = mockCreate.mock.calls[0][0];
+    const schema = params.response_format.json_schema.schema;
+    const schemaStr = JSON.stringify(schema);
+    expect(schemaStr).not.toContain('"oneOf"');
+  });
+
+  it("strips null optional fields from AI response", async () => {
+    const responseWithNulls = {
+      unsuitable: false,
+      unsuitableReason: "",
+      snapshotSuitable: false,
+      contentSelector: "",
+      suggestedTitle: "",
+      feed: {
+        title: "My Blog",
+        description: null,
+        link: null,
+      },
+      itemSelector: ".item",
+      fields: {
+        title: { selector: "h2", attr: null, html: null },
+        link: { selector: "a", attr: "href", html: null },
+        description: null,
+        pubDate: null,
+        author: null,
+        category: null,
+        image: null,
+      },
+    };
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(responseWithNulls) } }],
+    });
+
+    const result = await generateParserConfig(
+      "<html></html>",
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(result.unsuitable).toBe(false);
+    if (!result.unsuitable) {
+      expect(result.config.feed.title).toBe("My Blog");
+      expect(result.config.feed.description).toBeUndefined();
+      expect(result.config.feed.link).toBeUndefined();
+      expect(result.config.fields.title).toEqual({ selector: "h2" });
+      expect(result.config.fields.link).toEqual({ selector: "a", attr: "href" });
+      expect(result.config.fields.description).toBeUndefined();
+      expect(result.config.fields.pubDate).toBeUndefined();
+    }
+  });
+
   it("passes PostHog tracking params", async () => {
     mockCreate.mockResolvedValue({
       choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
