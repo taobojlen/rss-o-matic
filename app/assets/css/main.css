@@ -167,6 +167,115 @@ body {
   margin-bottom: 0.3rem;
 }
 
+/* ============================================================
+   NEWSLETTER DETAIL — Inline edit, delete confirmation, meta
+   ============================================================ */
+.newsletter-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.inline-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.inline-edit-input {
+  font-size: 1.1rem;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid #8aada4;
+  border-radius: 4px;
+  background: #fefefe;
+  color: #2a3a38;
+  font-family: inherit;
+  flex: 1;
+  max-width: 300px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.10);
+}
+
+.inline-edit-input:focus {
+  outline: none;
+  border-color: #3a7a40;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.10), 0 0 0 3px rgba(58,122,64,0.18);
+}
+
+.newsletter-meta {
+  font-size: 0.85rem;
+  color: #6a8882;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.save-error {
+  color: #b82020;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.btn-danger {
+  background: transparent;
+  color: #b04030;
+  border: 2px solid transparent;
+  border-bottom-width: 4px;
+  box-shadow: none;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e06050 0%, #c04838 40%, #b04030 100%);
+  color: #fff;
+  border-color: #903028;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15);
+}
+
+.btn-danger:active:not(:disabled) {
+  border-bottom-width: 2px;
+  transform: translateY(2px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.btn-danger-solid {
+  background: linear-gradient(180deg, #e06050 0%, #c04838 40%, #b04030 100%);
+  color: #fff;
+  border: 2px solid #903028;
+  border-bottom-width: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15);
+}
+
+.btn-danger-solid:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e87060 0%, #d05848 40%, #c04838 100%);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.btn-danger-solid:active:not(:disabled) {
+  border-bottom-width: 2px;
+  transform: translateY(2px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.delete-confirm-box {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: #fff8f6;
+  border: 2px solid #c08070;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.delete-confirm-box p {
+  color: #8a3020;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
 /* Hero description */
 .hero-description {
   text-align: center;
@@ -706,7 +815,10 @@ a.btn {
 
 .actions {
   margin-top: 1.5rem;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
 }
 
 /* ============================================================

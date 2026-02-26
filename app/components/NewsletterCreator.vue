@@ -7,18 +7,11 @@ interface NewsletterResponse {
   fullFeedUrl: string
 }
 
-type CreatorStep = 'form' | 'creating' | 'created' | 'error'
+type CreatorStep = 'form' | 'creating' | 'error'
 
 const name = ref('')
 const step = ref<CreatorStep>('form')
-const result = ref<NewsletterResponse | null>(null)
 const errorMessage = ref('')
-const copiedField = ref<'email' | 'feed' | null>(null)
-const origin = ref('')
-
-onMounted(() => {
-  origin.value = window.location.origin
-})
 
 async function handleCreate() {
   if (!name.value.trim()) return
@@ -30,8 +23,7 @@ async function handleCreate() {
       method: 'POST',
       body: { title: name.value.trim() },
     })
-    result.value = res
-    step.value = 'created'
+    await navigateTo(`/newsletters/${res.id}`)
   } catch (err: any) {
     errorMessage.value =
       err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
@@ -39,20 +31,10 @@ async function handleCreate() {
   }
 }
 
-function copyToClipboard(text: string, field: 'email' | 'feed') {
-  navigator.clipboard.writeText(text)
-  copiedField.value = field
-  setTimeout(() => {
-    copiedField.value = null
-  }, 2000)
-}
-
 function handleReset() {
   step.value = 'form'
   name.value = ''
-  result.value = null
   errorMessage.value = ''
-  copiedField.value = null
 }
 </script>
 
@@ -84,46 +66,6 @@ function handleReset() {
       {{ step === 'creating' ? 'Setting Up...' : 'Create Inbox' }}
     </button>
   </form>
-
-  <div v-if="step === 'created' && result" class="newsletter-result">
-    <h2 class="newsletter-result-heading">Your inbox is ready!</h2>
-    <p class="newsletter-result-intro">
-      Subscribe to newsletters using this email address. Each incoming issue
-      will appear in your Atom feed automatically.
-    </p>
-
-    <div class="newsletter-field">
-      <label class="newsletter-field-label">Email Address</label>
-      <div class="feed-url-box">
-        <code>{{ result.emailAddress }}</code>
-        <button
-          class="btn btn-secondary btn-sm"
-          @click="copyToClipboard(result.emailAddress, 'email')"
-        >
-          {{ copiedField === 'email' ? 'Copied!' : 'Copy' }}
-        </button>
-      </div>
-    </div>
-
-    <div class="newsletter-field">
-      <label class="newsletter-field-label">Atom Feed URL</label>
-      <div class="feed-url-box">
-        <code>{{ origin }}{{ result.feedUrl }}</code>
-        <button
-          class="btn btn-secondary btn-sm"
-          @click="copyToClipboard(`${origin}${result.feedUrl}`, 'feed')"
-        >
-          {{ copiedField === 'feed' ? 'Copied!' : 'Copy' }}
-        </button>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-secondary" @click="handleReset">
-        Create Another Inbox
-      </button>
-    </div>
-  </div>
 
   <div v-if="step === 'error'" class="error-box">
     <p>{{ errorMessage }}</p>

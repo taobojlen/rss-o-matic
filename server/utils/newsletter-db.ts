@@ -154,6 +154,26 @@ export async function getNewsletterItems(
   }));
 }
 
+export async function updateNewsletterFeedTitle(
+  id: string,
+  title: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .update(schema.newsletterFeeds)
+    .set({ title, updatedAt: now })
+    .where(eq(schema.newsletterFeeds.id, id));
+}
+
+export async function deleteNewsletterFeed(id: string): Promise<void> {
+  await db
+    .delete(schema.newsletterItems)
+    .where(eq(schema.newsletterItems.feedId, id));
+  await db
+    .delete(schema.newsletterFeeds)
+    .where(eq(schema.newsletterFeeds.id, id));
+}
+
 export async function getNewsletterItem(
   itemId: string
 ): Promise<NewsletterItemRecord | null> {
