@@ -319,7 +319,7 @@ export async function generateParserConfig(
     }
 
     const completion = await client.chat.completions.create(
-      params as Parameters<typeof client.chat.completions.create>[0]
+      params as unknown as Parameters<typeof client.chat.completions.create>[0]
     );
 
     const message = (completion as ChatCompletion).choices?.[0]?.message;
@@ -329,7 +329,7 @@ export async function generateParserConfig(
     }
 
     // If the model made tool calls, execute them and continue the loop.
-    const toolCalls = (message as Record<string, unknown>).tool_calls as
+    const toolCalls = message.tool_calls as
       | Array<{ id: string; function: { name: string; arguments: string } }>
       | undefined;
 
