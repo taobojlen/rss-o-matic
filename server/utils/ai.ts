@@ -218,8 +218,10 @@ export function findFragileSelectors(config: ParserConfig): string[] {
       .filter((f): f is { selector: string } => f != null && typeof f === "object" && "selector" in f)
       .map((f) => f.selector),
   ];
-  if (config.feed.description?.selector) selectors.push(config.feed.description.selector);
-  if (config.feed.link?.selector) selectors.push(config.feed.link.selector);
+  const desc = config.feed.description;
+  if (desc && typeof desc === "object" && desc.selector) selectors.push(desc.selector);
+  const link = config.feed.link;
+  if (link && typeof link === "object" && link.selector) selectors.push(link.selector);
 
   const fragile: string[] = [];
   for (const sel of selectors) {
@@ -426,12 +428,11 @@ export async function generateParserConfig(
               function: { name: tc.function?.name || "", arguments: "" },
             };
           }
-          if (tc.id) toolCallAccum[tc.index].id = tc.id;
-          if (tc.function?.name)
-            toolCallAccum[tc.index].function.name = tc.function.name;
+          const accum = toolCallAccum[tc.index]!;
+          if (tc.id) accum.id = tc.id;
+          if (tc.function?.name) accum.function.name = tc.function.name;
           if (tc.function?.arguments)
-            toolCallAccum[tc.index].function.arguments +=
-              tc.function.arguments;
+            accum.function.arguments += tc.function.arguments;
         }
       }
     }

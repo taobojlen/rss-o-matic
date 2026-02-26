@@ -102,9 +102,10 @@ export function useGenerateStream() {
       // Append token to the active streaming entry, or create a new one
       if (activeTextEntryIndex >= 0) {
         const entries = [...logEntries.value];
+        const prev = entries[activeTextEntryIndex]!;
         entries[activeTextEntryIndex] = {
-          ...entries[activeTextEntryIndex],
-          message: entries[activeTextEntryIndex].message + data.text,
+          ...prev,
+          message: prev.message + data.text,
         };
         logEntries.value = entries;
       } else {
@@ -120,8 +121,9 @@ export function useGenerateStream() {
     // Any non-ai_text event finalizes the current streaming text entry
     if (activeTextEntryIndex >= 0) {
       const entries = [...logEntries.value];
+      const prev = entries[activeTextEntryIndex]!;
       entries[activeTextEntryIndex] = {
-        ...entries[activeTextEntryIndex],
+        ...prev,
         streaming: false,
       };
       logEntries.value = entries;
