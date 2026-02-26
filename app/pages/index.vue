@@ -56,7 +56,7 @@ const errorMessage = ref('')
 const errorStatusCode = ref<number | null>(null)
 const copied = ref(false)
 const origin = ref('')
-const progress = useGenerateProgress()
+const stream = useGenerateStream()
 
 onMounted(() => {
   origin.value = window.location.origin
@@ -70,20 +70,17 @@ async function handleSubmit() {
   existingFeeds.value = []
   unsuitableReason.value = ''
   errorMessage.value = ''
-  progress.start()
+  stream.reset()
 
-  try {
-    const res = await $fetch<GenerateResponse>('/api/generate', {
-      method: 'POST',
-      body: { url: url.value.trim() },
-    })
+  await stream.start(url.value.trim())
 
+  // Handle result
+  const res = stream.result.value as GenerateResponse | null
+  if (res) {
     if (res.type === 'existing_feed') {
-      progress.reset()
       existingFeeds.value = res.existingFeeds
       step.value = 'existing_feed'
     } else if (res.type === 'snapshot_available') {
-      progress.reset()
       unsuitableReason.value = res.reason
       snapshotData.value = {
         contentSelector: res.contentSelector,
@@ -91,22 +88,19 @@ async function handleSubmit() {
       }
       step.value = 'snapshot_available'
     } else if (res.type === 'unsuitable') {
-      progress.reset()
       unsuitableReason.value = res.reason
       step.value = 'unsuitable'
     } else {
-      progress.finish()
       generatedData.value = res
-      // Brief pause so the user sees the "done" checkmark
-      await new Promise(resolve => setTimeout(resolve, 1500))
       step.value = 'preview'
       refreshRecentFeeds()
     }
-  } catch (err: any) {
-    progress.reset()
-    errorMessage.value =
-      err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
-    errorStatusCode.value = err?.data?.statusCode || err?.statusCode || null
+    return
+  }
+
+  // Handle error
+  if (stream.error.value) {
+    errorMessage.value = stream.error.value
     step.value = 'error'
   }
 }
@@ -114,7 +108,6 @@ async function handleSubmit() {
 async function handleCreateSnapshotFeed() {
   if (!snapshotData.value) return
   step.value = 'loading'
-  progress.start()
 
   try {
     const res = await $fetch<Extract<GenerateResponse, { type: 'generated' }>>('/api/generate-snapshot', {
@@ -126,13 +119,10 @@ async function handleCreateSnapshotFeed() {
       },
     })
 
-    progress.finish()
     generatedData.value = res
-    await new Promise(resolve => setTimeout(resolve, 1500))
     step.value = 'preview'
     refreshRecentFeeds()
   } catch (err: any) {
-    progress.reset()
     errorMessage.value =
       err?.data?.message || err?.statusMessage || err?.message || 'Something went wrong'
     errorStatusCode.value = err?.data?.statusCode || err?.statusCode || null
@@ -197,7 +187,7 @@ function handleReset() {
   errorMessage.value = ''
   errorStatusCode.value = null
   copied.value = false
-  progress.reset()
+  stream.reset()
 }
 </script>
 
@@ -231,56 +221,10 @@ function handleReset() {
   </form>
 
   <div v-if="step === 'loading'" class="progress-panel">
-    <div class="progress-steps">
-      <div
-        class="progress-step"
-        :class="{
-          active: progress.currentStep.value === 'fetching',
-          completed: progress.completedSteps.value.has('fetching'),
-        }"
-      >
-        <span class="step-indicator">
-          <span v-if="progress.completedSteps.value.has('fetching')" class="step-check">&#10003;</span>
-          <span v-else class="step-spinner" />
-        </span>
-        <span class="step-label">Dialing up the webpage...</span>
-      </div>
-
-      <div
-        class="progress-step"
-        :class="{
-          active: progress.currentStep.value === 'analyzing',
-          completed: progress.completedSteps.value.has('analyzing'),
-          pending: !progress.completedSteps.value.has('fetching') && progress.currentStep.value !== 'analyzing',
-        }"
-      >
-        <span class="step-indicator">
-          <span v-if="progress.completedSteps.value.has('analyzing')" class="step-check">&#10003;</span>
-          <span v-else-if="progress.currentStep.value === 'analyzing'" class="step-spinner" />
-          <span v-else class="step-dot" />
-        </span>
-        <Transition name="label-fade" mode="out-in">
-          <span class="step-label" :key="progress.analyzingLabel.value">{{ progress.analyzingLabel.value }}</span>
-        </Transition>
-      </div>
-
-      <div
-        class="progress-step"
-        :class="{
-          active: progress.currentStep.value === 'done',
-          completed: progress.completedSteps.value.has('done'),
-          pending: progress.currentStep.value !== 'done',
-        }"
-      >
-        <span class="step-indicator">
-          <span v-if="progress.completedSteps.value.has('done')" class="step-check">&#10003;</span>
-          <span v-else class="step-dot" />
-        </span>
-        <span class="step-label">Coming in loud and clear!</span>
-      </div>
-    </div>
-
-    <p class="progress-hint">Hang tight &mdash; good feeds take a moment</p>
+    <AgentLog
+      :is-streaming="stream.isStreaming.value"
+      :log-entries="stream.logEntries.value"
+    />
   </div>
 
   <div v-if="step === 'existing_feed'" class="existing-feed-box">
