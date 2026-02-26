@@ -378,7 +378,7 @@ function handleReset() {
 
     <template v-else>
       <p class="section-label">
-        Preview ({{ generatedData.preview.items.length }} items from "{{ generatedData.preview.title }}")
+        Preview ({{ generatedData.preview.title }})
       </p>
       <ul class="items-list">
         <li v-for="(item, i) in generatedData.preview.items.slice(0, 5)" :key="i">
