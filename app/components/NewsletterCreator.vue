@@ -65,6 +65,7 @@ function handleReset() {
     >
       {{ step === 'creating' ? 'Setting Up...' : 'Create Inbox' }}
     </button>
+    <p class="form-hint">Your mailbox is for your eyes only &mdash; no snooping, no sharing, no funny business.</p>
   </form>
 
   <div v-if="step === 'error'" class="error-box">

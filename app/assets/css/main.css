@@ -350,6 +350,7 @@ body {
    ============================================================ */
 .url-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 2rem;
 }
@@ -381,6 +382,14 @@ body {
 
 .url-form input::placeholder {
   color: #7a9a94;
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: #6a8882;
+  text-align: center;
+  flex-basis: 100%;
+  margin-top: -0.5rem;
 }
 
 /* ============================================================
