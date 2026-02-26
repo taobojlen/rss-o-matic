@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const feedId = nanoid(12);
-  const emailToken = nanoid(12);
+  const emailToken = nanoid(12).toLowerCase();
   const emailAddress = `${emailToken}@${EMAIL_DOMAIN}`;
 
   await createNewsletterFeed(feedId, title, emailAddress);

@@ -1,4 +1,4 @@
-import { desc, eq, count, asc } from "drizzle-orm";
+import { desc, eq, count, asc, sql } from "drizzle-orm";
 import { db, schema } from "@nuxthub/db";
 
 const MAX_ITEMS_PER_FEED = 100;
@@ -63,7 +63,7 @@ export async function getNewsletterFeedByEmail(
   const rows = await db
     .select()
     .from(schema.newsletterFeeds)
-    .where(eq(schema.newsletterFeeds.emailAddress, emailAddress))
+    .where(sql`lower(${schema.newsletterFeeds.emailAddress}) = ${emailAddress.toLowerCase()}`)
     .limit(1);
   if (rows.length === 0) return null;
   const row = rows[0]!;

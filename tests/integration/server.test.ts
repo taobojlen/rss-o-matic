@@ -108,6 +108,50 @@ describe("server integration tests", async () => {
     });
   });
 
+  describe("POST /api/newsletters", () => {
+    it("creates a newsletter feed with a lowercase email address", async () => {
+      const result = await $fetch<{
+        id: string;
+        title: string;
+        emailAddress: string;
+        feedUrl: string;
+      }>("/api/newsletters", {
+        method: "POST",
+        body: { title: "Test Newsletter" },
+      });
+
+      expect(result.id).toBeTruthy();
+      expect(result.title).toBe("Test Newsletter");
+      expect(result.emailAddress).toMatch(/@rss-o-matic\.com$/);
+      expect(result.emailAddress).toBe(result.emailAddress.toLowerCase());
+    });
+
+    it("can retrieve a created newsletter feed by id", async () => {
+      const created = await $fetch<{ id: string; emailAddress: string }>(
+        "/api/newsletters",
+        { method: "POST", body: { title: "Lookup Test" } }
+      );
+
+      const fetched = await $fetch<{ id: string; emailAddress: string }>(
+        `/api/newsletters/${created.id}`
+      );
+
+      expect(fetched.id).toBe(created.id);
+      expect(fetched.emailAddress).toBe(created.emailAddress);
+    });
+
+    it("serves an atom feed for a created newsletter", async () => {
+      const created = await $fetch<{ id: string; feedUrl: string }>(
+        "/api/newsletters",
+        { method: "POST", body: { title: "Atom Test" } }
+      );
+
+      const xml = await $fetch<string>(created.feedUrl);
+      expect(xml).toContain("<feed");
+      expect(xml).toContain("Atom Test");
+    });
+  });
+
   describe("GET /feed/:id", () => {
     it("returns 404 for nonexistent feed", async () => {
       const result = await $fetch("/feed/nonexistent123.xml").catch(
