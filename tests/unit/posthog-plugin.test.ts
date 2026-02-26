@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 
-// Mock the captureServerException utility
+// Mock the posthog utilities
 const mockCaptureServerException = vi.fn(() => Promise.resolve());
+const mockGetPostHogSessionContext = vi.fn(() => ({
+  sessionId: undefined,
+  distinctId: undefined,
+}));
 vi.mock("~/server/utils/posthog", () => ({
   captureServerException: (...args: unknown[]) =>
     mockCaptureServerException(...args),
+  getPostHogSessionContext: (...args: unknown[]) =>
+    mockGetPostHogSessionContext(...args),
 }));
 
 // Capture the hook callback when the plugin registers
@@ -31,6 +37,11 @@ describe("posthog nitro plugin", () => {
 
   beforeEach(() => {
     mockCaptureServerException.mockClear();
+    mockGetPostHogSessionContext.mockReset();
+    mockGetPostHogSessionContext.mockReturnValue({
+      sessionId: undefined,
+      distinctId: undefined,
+    });
   });
 
   it("captures non-404 errors", () => {
@@ -76,5 +87,39 @@ describe("posthog nitro plugin", () => {
     errorHook(error, { event });
 
     expect(mockCaptureServerException).not.toHaveBeenCalled();
+  });
+
+  it("passes session context to captureServerException when headers are present", () => {
+    const sessionContext = { sessionId: "sess-abc", distinctId: "dist-xyz" };
+    mockGetPostHogSessionContext.mockReturnValue(sessionContext);
+
+    const error = new Error("Something broke");
+    const event = {
+      path: "/api/generate",
+      method: "POST",
+      context: {},
+    };
+
+    errorHook(error, { event });
+
+    expect(mockGetPostHogSessionContext).toHaveBeenCalledWith(event);
+    expect(mockCaptureServerException).toHaveBeenCalledWith(
+      error,
+      expect.any(Object),
+      sessionContext
+    );
+  });
+
+  it("passes undefined session context when event is undefined", () => {
+    const error = new Error("Something broke");
+
+    errorHook(error, {});
+
+    expect(mockGetPostHogSessionContext).not.toHaveBeenCalled();
+    expect(mockCaptureServerException).toHaveBeenCalledWith(
+      error,
+      expect.any(Object),
+      undefined
+    );
   });
 });
