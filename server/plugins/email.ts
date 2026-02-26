@@ -35,7 +35,7 @@ export default defineNitroPlugin((nitroApp) => {
       // Look up the newsletter feed
       const feed = await getNewsletterFeedByEmail(to);
       if (!feed) {
-        message.setReject("Unknown recipient");
+        // Silently drop — feed may have been deleted while sender keeps mailing
         return;
       }
 
