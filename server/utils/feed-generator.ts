@@ -42,6 +42,7 @@ function buildFeed(
       id: item.link,
       link: item.link,
       description: item.description,
+      content: item.content,
       date: date ?? new Date(),
       author: item.author ? [{ name: item.author }] : undefined,
       category: item.category ? [{ name: item.category }] : undefined,

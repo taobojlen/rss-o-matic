@@ -222,6 +222,7 @@ async function serveNewsletterFeed(
       description: item.content_text
         ? item.content_text.slice(0, 500)
         : undefined,
+      content: item.content_html || item.content_text || undefined,
       pubDate: item.received_at,
       author: item.author_name || item.author_email || undefined,
     })),

@@ -41,6 +41,7 @@ export interface FeedItem {
   title: string;
   link: string;
   description?: string;
+  content?: string;
   pubDate?: string;
   author?: string;
   category?: string;
