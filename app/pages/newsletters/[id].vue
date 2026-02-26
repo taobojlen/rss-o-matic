@@ -217,7 +217,7 @@ useHead({
       <p v-if="deleteError" class="save-error">{{ deleteError }}</p>
       <div class="error-actions">
         <button
-          class="btn btn-danger"
+          class="btn btn-danger-solid"
           :disabled="deleting"
           @click="executeDelete"
         >
