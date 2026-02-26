@@ -370,7 +370,7 @@ describe("POST /api/generate", () => {
     expect(mockSaveFeed).not.toHaveBeenCalled();
   });
 
-  it("falls back to snapshot_available after retries exhaust when page is snapshot-suitable", async () => {
+  it("falls back to snapshot_available when AI returns 0 items but page is snapshot-suitable", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com/updates" });
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
@@ -404,8 +404,7 @@ describe("POST /api/generate", () => {
       suggestedTitle: "o16g Updates",
     });
     expect(mockSaveFeed).not.toHaveBeenCalled();
-    // Should exhaust retries before falling back (1 initial + 2 retries = 3)
-    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(3);
+    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
   });
 
   it("prefers snapshot when selectors find only 1 item and page is snapshot-suitable", async () => {
@@ -619,7 +618,7 @@ describe("POST /api/generate", () => {
       );
     });
 
-    it("tracks 'error' outcome after retry exhaustion", async () => {
+    it("tracks 'error' outcome when AI config finds no items", async () => {
       mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html></html>");
@@ -676,71 +675,8 @@ describe("POST /api/generate", () => {
     });
   });
 
-  describe("selector retry", () => {
-    it("retries with feedback when first attempt returns 0 items, succeeds on second", async () => {
-      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
-      mockGetFeedByUrl.mockResolvedValue(null);
-      mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
-      mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-
-      mockGenerateParserConfig
-        .mockResolvedValueOnce({
-          unsuitable: false,
-          config: { itemSelector: ".wrong", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
-        })
-        .mockResolvedValueOnce({
-          unsuitable: false,
-          config: { itemSelector: ".post", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
-        });
-
-      mockParseHtml
-        .mockReturnValueOnce({ title: "Blog", description: "", link: "https://example.com/blog", items: [] })
-        .mockReturnValueOnce({ title: "Blog", description: "", link: "https://example.com/blog", items: [{ title: "Hello", link: "/hello" }] });
-
-      const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      const result = await handler({} as any);
-
-      expect(mockGenerateParserConfig).toHaveBeenCalledTimes(2);
-      expect(result.type).toBe("generated");
-      expect(result.preview.items).toHaveLength(1);
-      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
-        {},
-        "selector_retry",
-        { url: "https://example.com/blog", attempt: 1, reason: "no_items" }
-      );
-    });
-
-    it("retries when generateParserConfig throws (invalid CSS), succeeds on second", async () => {
-      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
-      mockGetFeedByUrl.mockResolvedValue(null);
-      mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
-      mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-
-      mockGenerateParserConfig
-        .mockRejectedValueOnce(new Error('fields.title contains an invalid CSS selector: "div:>>foo"'))
-        .mockResolvedValueOnce({
-          unsuitable: false,
-          config: { itemSelector: ".post", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
-        });
-
-      mockParseHtml.mockReturnValue({
-        title: "Blog", description: "", link: "https://example.com/blog",
-        items: [{ title: "Hello", link: "/hello" }],
-      });
-
-      const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      const result = await handler({} as any);
-
-      expect(mockGenerateParserConfig).toHaveBeenCalledTimes(2);
-      expect(result.type).toBe("generated");
-      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
-        {},
-        "selector_retry",
-        { url: "https://example.com/blog", attempt: 1, reason: "invalid_css" }
-      );
-    });
-
-    it("throws 422 after exhausting all retries with 0 items", async () => {
+  describe("AI result handling", () => {
+    it("throws 422 when AI config produces 0 items and no snapshot fallback", async () => {
       mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html></html>");
@@ -756,13 +692,13 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then((m) => m.default);
       await expect(handler({} as any)).rejects.toThrow();
 
-      expect(mockGenerateParserConfig).toHaveBeenCalledTimes(3);
+      expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
       expect(mockCreateError).toHaveBeenCalledWith(
         expect.objectContaining({ statusCode: 422 })
       );
     });
 
-    it("does not retry when first attempt succeeds", async () => {
+    it("calls generateParserConfig exactly once", async () => {
       mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
@@ -782,7 +718,7 @@ describe("POST /api/generate", () => {
       expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
     });
 
-    it("returns unsuitable immediately without retrying", async () => {
+    it("returns unsuitable immediately without parsing HTML", async () => {
       mockReadBody.mockResolvedValue({ url: "https://example.com" });
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html><body><h1>Welcome</h1></body></html>");
@@ -799,38 +735,6 @@ describe("POST /api/generate", () => {
       expect(result.type).toBe("unsuitable");
       expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
       expect(mockParseHtml).not.toHaveBeenCalled();
-    });
-
-    it("includes failing itemSelector in retry feedback", async () => {
-      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
-      mockGetFeedByUrl.mockResolvedValue(null);
-      mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
-      mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
-
-      mockGenerateParserConfig
-        .mockResolvedValueOnce({
-          unsuitable: false,
-          config: { itemSelector: ".bad-selector", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
-        })
-        .mockResolvedValueOnce({
-          unsuitable: false,
-          config: { itemSelector: ".post", fields: { title: { selector: "h2" }, link: { selector: "a", attr: "href" } }, feed: { title: "Blog" } },
-        });
-
-      mockParseHtml
-        .mockReturnValueOnce({ title: "Blog", description: "", link: "https://example.com/blog", items: [] })
-        .mockReturnValueOnce({ title: "Blog", description: "", link: "https://example.com/blog", items: [{ title: "Hello", link: "/hello" }] });
-
-      const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      await handler({} as any);
-
-      const secondCall = mockGenerateParserConfig.mock.calls[1];
-      const priorMessages = secondCall[4];
-      expect(priorMessages).toBeDefined();
-      expect(priorMessages).toHaveLength(2);
-      expect(priorMessages[0].role).toBe("assistant");
-      expect(priorMessages[1].role).toBe("user");
-      expect(priorMessages[1].content).toContain(".bad-selector");
     });
   });
 });
