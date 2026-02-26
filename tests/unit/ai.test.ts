@@ -31,7 +31,47 @@ vi.mock("@posthog/ai/openai", () => ({
   OpenAI: MockOpenAI,
 }));
 
-import { generateParserConfig, executeTestSelector } from "~/server/utils/ai";
+import { generateParserConfig, executeTestSelector, findFragileSelectors } from "~/server/utils/ai";
+
+/**
+ * Create an async-iterable mock that simulates OpenAI streaming chunks.
+ * Each entry in `chunks` becomes one yielded value.
+ */
+function mockStreamResponse(
+  chunks: Array<{
+    content?: string;
+    reasoning?: string;
+    reasoning_details?: Array<Record<string, unknown>>;
+    tool_calls?: Array<{
+      index: number;
+      id?: string;
+      function?: { name?: string; arguments?: string };
+    }>;
+  }>
+) {
+  async function* generate() {
+    for (const chunk of chunks) {
+      yield {
+        choices: [
+          {
+            delta: {
+              content: chunk.content ?? null,
+              reasoning: chunk.reasoning ?? null,
+              reasoning_details: chunk.reasoning_details,
+              tool_calls: chunk.tool_calls,
+            },
+          },
+        ],
+      };
+    }
+  }
+  return generate();
+}
+
+/** Shorthand: create a stream that yields a single text content chunk. */
+function mockTextStream(json: string) {
+  return mockStreamResponse([{ content: json }]);
+}
 
 const VALID_CONFIG = {
   unsuitable: false,
@@ -47,18 +87,19 @@ const VALID_CONFIG = {
   },
 };
 
+/** HTML that contains elements matching VALID_CONFIG's .item selector */
+const HTML_WITH_ITEMS = '<html><body><div class="item"><h2>Title</h2><a href="/1">Link</a></div><div class="item"><h2>Title 2</h2><a href="/2">Link</a></div></body></html>';
+
 describe("generateParserConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns parsed config on successful API response", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     const result = await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "test-key",
       "test-model"
@@ -90,9 +131,7 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on empty AI response", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "" } }],
-    });
+    mockCreate.mockReturnValue(mockStreamResponse([]));
 
     await expect(
       generateParserConfig(
@@ -105,7 +144,7 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on missing choices", async () => {
-    mockCreate.mockResolvedValue({});
+    mockCreate.mockReturnValue(mockStreamResponse([]));
 
     await expect(
       generateParserConfig(
@@ -118,9 +157,10 @@ describe("generateParserConfig", () => {
   });
 
   it("throws on invalid JSON in AI response", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "not json {{{" } }],
-    });
+    // Provide a fresh stream for each iteration (the code retries on validation errors)
+    for (let i = 0; i < 3; i++) {
+      mockCreate.mockReturnValueOnce(mockTextStream("not json {{{"));
+    }
 
     await expect(
       generateParserConfig(
@@ -133,9 +173,7 @@ describe("generateParserConfig", () => {
   });
 
   it("throws when AI returns invalid config shape", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify({ bad: true }) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify({ bad: true })));
 
     await expect(
       generateParserConfig(
@@ -148,12 +186,10 @@ describe("generateParserConfig", () => {
   });
 
   it("creates OpenAI client with OpenRouter config", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "my-api-key",
       "my-model"
@@ -172,12 +208,10 @@ describe("generateParserConfig", () => {
   });
 
   it("passes correct params to chat.completions.create", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "my-api-key",
       "my-model"
@@ -205,9 +239,7 @@ describe("generateParserConfig", () => {
         link: { selector: "a", attr: "href" },
       },
     };
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(unsuitableResponse) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(unsuitableResponse)));
 
     const result = await generateParserConfig(
       "<html></html>",
@@ -238,9 +270,7 @@ describe("generateParserConfig", () => {
         link: { selector: "a", attr: "href" },
       },
     };
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(unsuitableButMonitorable) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(unsuitableButMonitorable)));
 
     const result = await generateParserConfig(
       "<html></html>",
@@ -257,12 +287,10 @@ describe("generateParserConfig", () => {
   });
 
   it("includes the URL in the prompt", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com/blog",
       "key",
       "model"
@@ -273,12 +301,10 @@ describe("generateParserConfig", () => {
   });
 
   it("sends single user message as the initial prompt", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -290,12 +316,10 @@ describe("generateParserConfig", () => {
   });
 
   it("schema has no oneOf keyword", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -330,12 +354,10 @@ describe("generateParserConfig", () => {
         image: null,
       },
     };
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(responseWithNulls) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(responseWithNulls)));
 
     const result = await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -354,12 +376,10 @@ describe("generateParserConfig", () => {
   });
 
   it("includes tools in the first API call", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -373,26 +393,14 @@ describe("generateParserConfig", () => {
 
   it("executes tool calls and continues the loop", async () => {
     // First call: model returns a tool call
-    mockCreate.mockResolvedValueOnce({
-      choices: [{
-        message: {
-          role: "assistant",
-          content: null,
-          tool_calls: [{
-            id: "call_1",
-            type: "function",
-            function: {
-              name: "test_selector",
-              arguments: JSON.stringify({ selector: ".item", context_selector: null, attr: null }),
-            },
-          }],
-        },
-      }],
-    });
+    const toolArgs = JSON.stringify({ selector: ".item", context_selector: null, attr: null });
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([
+        { tool_calls: [{ index: 0, id: "call_1", function: { name: "test_selector", arguments: toolArgs } }] },
+      ])
+    );
     // Second call: model returns text config
-    mockCreate.mockResolvedValueOnce({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     const result = await generateParserConfig(
       '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>',
@@ -412,28 +420,16 @@ describe("generateParserConfig", () => {
 
   it("omits tools on the final iteration to force text output", async () => {
     // First two calls return tool calls (iterations 0 and 1 of MAX_ITERATIONS=3)
+    const toolArgs = JSON.stringify({ selector: ".item", context_selector: null, attr: null });
     for (let i = 0; i < 2; i++) {
-      mockCreate.mockResolvedValueOnce({
-        choices: [{
-          message: {
-            role: "assistant",
-            content: null,
-            tool_calls: [{
-              id: `call_${i}`,
-              type: "function",
-              function: {
-                name: "test_selector",
-                arguments: JSON.stringify({ selector: ".item", context_selector: null, attr: null }),
-              },
-            }],
-          },
-        }],
-      });
+      mockCreate.mockReturnValueOnce(
+        mockStreamResponse([
+          { tool_calls: [{ index: 0, id: `call_${i}`, function: { name: "test_selector", arguments: toolArgs } }] },
+        ])
+      );
     }
     // Third call (final iteration): model returns text
-    mockCreate.mockResolvedValueOnce({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
       '<div class="item"><h2>T</h2><a href="/1">L</a></div>',
@@ -451,12 +447,10 @@ describe("generateParserConfig", () => {
   });
 
   it("returns immediately when model responds with text (no tool calls)", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     const result = await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -466,13 +460,191 @@ describe("generateParserConfig", () => {
     expect(result.unsuitable).toBe(false);
   });
 
+  it("retries with feedback when config validation fails on non-last iteration", async () => {
+    const invalidConfig = {
+      ...VALID_CONFIG,
+      itemSelector: "", // empty = invalid
+    };
+
+    // First call: returns invalid config
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(invalidConfig)));
+    // Second call: returns valid config
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
+
+    const result = await generateParserConfig(
+      HTML_WITH_ITEMS,
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.unsuitable).toBe(false);
+    if (!result.unsuitable) {
+      expect(result.config.itemSelector).toBe(".item");
+    }
+
+    // Second call should include the validation error feedback
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const userFeedback = secondCallMessages.find(
+      (m: any) => m.role === "user" && m.content?.includes("invalid")
+    );
+    expect(userFeedback).toBeDefined();
+    expect(userFeedback.content).toContain("itemSelector");
+  });
+
+  it("retries with feedback when itemSelector matches zero elements on non-last iteration", async () => {
+    const badConfig = {
+      ...VALID_CONFIG,
+      itemSelector: ".nonexistent", // won't match anything in the HTML
+    };
+
+    // First call: returns config with non-matching selector
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(badConfig)));
+    // Second call: returns config with matching selector
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
+
+    const html = '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>';
+    const result = await generateParserConfig(
+      html,
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.unsuitable).toBe(false);
+    if (!result.unsuitable) {
+      expect(result.config.itemSelector).toBe(".item");
+    }
+
+    // Second call should include feedback about zero matches
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const userFeedback = secondCallMessages.find(
+      (m: any) => m.role === "user" && m.content?.includes("0 elements")
+    );
+    expect(userFeedback).toBeDefined();
+    expect(userFeedback.content).toContain(".nonexistent");
+  });
+
+  it("retries with feedback when itemSelector matches zero elements (streaming)", async () => {
+    const badConfig = {
+      ...VALID_CONFIG,
+      itemSelector: ".nonexistent",
+    };
+
+    // First call: streaming, returns config with non-matching selector
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([{ content: JSON.stringify(badConfig) }])
+    );
+    // Second call: streaming, returns config with matching selector
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([{ content: JSON.stringify(VALID_CONFIG) }])
+    );
+
+    const html = '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>';
+    const events: Array<{ event: string; data: unknown }> = [];
+    const result = await generateParserConfig(
+      html,
+      "https://example.com",
+      "key",
+      "model",
+      (evt) => events.push(evt)
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.unsuitable).toBe(false);
+    if (!result.unsuitable) {
+      expect(result.config.itemSelector).toBe(".item");
+    }
+
+    // Second call should include feedback about zero matches
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const userFeedback = secondCallMessages.find(
+      (m: any) => m.role === "user" && m.content?.includes("0 elements")
+    );
+    expect(userFeedback).toBeDefined();
+  });
+
+  it("retries with feedback when selectors contain fragile hashed class names", async () => {
+    const fragileConfig = {
+      ...VALID_CONFIG,
+      itemSelector: "ul.PublicationList-module-scss-module__KxYrHG__list > li",
+      fields: {
+        ...VALID_CONFIG.fields,
+        title: { selector: "span.PostCard-module__a1b2c3__title" },
+      },
+    };
+
+    // First call: returns config with fragile selectors
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(fragileConfig)));
+    // Second call: returns good config
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
+
+    const result = await generateParserConfig(
+      HTML_WITH_ITEMS,
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.unsuitable).toBe(false);
+
+    // Second call should include feedback about fragile selectors
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const userFeedback = secondCallMessages.find(
+      (m: any) => m.role === "user" && m.content?.includes("fragile")
+    );
+    expect(userFeedback).toBeDefined();
+    expect(userFeedback.content).toContain("PublicationList-module-scss-module__KxYrHG__list");
+  });
+
+  it("accepts config when itemSelector matches elements", async () => {
+    // Config whose itemSelector DOES match the provided HTML
+    mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(VALID_CONFIG)));
+
+    const html = '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>';
+    const result = await generateParserConfig(
+      html,
+      "https://example.com",
+      "key",
+      "model"
+    );
+
+    // Should accept on first try — no retry needed
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(result.unsuitable).toBe(false);
+  });
+
+  it("throws on last iteration if config is still invalid", async () => {
+    const invalidConfig = {
+      ...VALID_CONFIG,
+      itemSelector: "", // empty = invalid
+    };
+
+    // All 3 iterations return invalid config
+    for (let i = 0; i < 3; i++) {
+      mockCreate.mockReturnValueOnce(mockTextStream(JSON.stringify(invalidConfig)));
+    }
+
+    await expect(
+      generateParserConfig(
+        "<html></html>",
+        "https://example.com",
+        "key",
+        "model"
+      )
+    ).rejects.toThrow("itemSelector");
+
+    expect(mockCreate).toHaveBeenCalledTimes(3);
+  });
+
   it("prompt mentions the test_selector tool", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -483,12 +655,10 @@ describe("generateParserConfig", () => {
   });
 
   it("passes PostHog tracking params", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(VALID_CONFIG) } }],
-    });
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
 
     await generateParserConfig(
-      "<html></html>",
+      HTML_WITH_ITEMS,
       "https://example.com",
       "key",
       "model"
@@ -498,6 +668,141 @@ describe("generateParserConfig", () => {
     expect(params.posthogDistinctId).toBe("rss-o-matic-server");
     expect(params.posthogCaptureImmediate).toBe(true);
     expect(params.posthogProperties).toEqual({ url: "https://example.com" });
+  });
+
+  it("emits analyze status event before each iteration", async () => {
+    const json = JSON.stringify(VALID_CONFIG);
+    mockCreate.mockReturnValue(
+      mockStreamResponse([{ content: json }])
+    );
+
+    const events: Array<{ event: string; data: unknown }> = [];
+    await generateParserConfig(
+      HTML_WITH_ITEMS,
+      "https://example.com",
+      "key",
+      "model",
+      (evt) => events.push(evt)
+    );
+
+    const statusEvents = events.filter((e) => e.event === "status");
+    expect(statusEvents.length).toBeGreaterThanOrEqual(1);
+    expect(statusEvents[0].data).toEqual({
+      phase: "analyze",
+      iteration: 1,
+      maxIterations: 3,
+    });
+
+    // Should enable streaming and reasoning when onEvent is provided
+    const params = mockCreate.mock.calls[0][0];
+    expect(params.stream).toBe(true);
+    expect(params.reasoning).toEqual({ enabled: true });
+  });
+
+  it("emits tool_call and tool_result events during tool use", async () => {
+    const toolArgs = JSON.stringify({ selector: ".item", context_selector: null, attr: null });
+    // First call: streaming tool call
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([
+        { tool_calls: [{ index: 0, id: "call_1", function: { name: "test_selector", arguments: toolArgs } }] },
+      ])
+    );
+    // Second call: streaming text response
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([{ content: JSON.stringify(VALID_CONFIG) }])
+    );
+
+    const events: Array<{ event: string; data: unknown }> = [];
+    await generateParserConfig(
+      '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>',
+      "https://example.com",
+      "key",
+      "model",
+      (evt) => events.push(evt)
+    );
+
+    const toolCallEvents = events.filter((e) => e.event === "tool_call");
+    expect(toolCallEvents).toHaveLength(1);
+    expect(toolCallEvents[0].data).toEqual({
+      selector: ".item",
+      contextSelector: null,
+      attr: null,
+    });
+
+    const toolResultEvents = events.filter((e) => e.event === "tool_result");
+    expect(toolResultEvents).toHaveLength(1);
+    expect((toolResultEvents[0].data as any).matchCount).toBe(1);
+  });
+
+  it("emits ai_text events from reasoning tokens, not content", async () => {
+    const json = JSON.stringify(VALID_CONFIG);
+    // Reasoning tokens stream the model's thinking; content is the JSON (not streamed to user)
+    mockCreate.mockReturnValue(
+      mockStreamResponse([
+        { reasoning: "Let me analyze" },
+        { reasoning: " the page structure." },
+        { content: json },
+      ])
+    );
+
+    const events: Array<{ event: string; data: unknown }> = [];
+    await generateParserConfig(
+      HTML_WITH_ITEMS,
+      "https://example.com",
+      "key",
+      "model",
+      (evt) => events.push(evt)
+    );
+
+    const aiTextEvents = events.filter((e) => e.event === "ai_text");
+    expect(aiTextEvents).toHaveLength(2);
+    const combined = aiTextEvents.map((e) => (e.data as any).text).join("");
+    expect(combined).toBe("Let me analyze the page structure.");
+  });
+
+  it("preserves reasoning_details in assistant messages across tool-calling turns", async () => {
+    const toolArgs = JSON.stringify({ selector: ".item", context_selector: null, attr: null });
+    const reasoningDetail = { type: "reasoning.text", text: "Let me test selectors", id: "r1", format: "anthropic-claude-v1" };
+
+    // First call: streaming with reasoning_details + tool call
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([
+        { reasoning: "Let me test selectors", reasoning_details: [reasoningDetail] },
+        { tool_calls: [{ index: 0, id: "call_1", function: { name: "test_selector", arguments: toolArgs } }] },
+      ])
+    );
+    // Second call: streaming text response
+    mockCreate.mockReturnValueOnce(
+      mockStreamResponse([{ content: JSON.stringify(VALID_CONFIG) }])
+    );
+
+    await generateParserConfig(
+      '<div class="item"><h2>Title</h2><a href="/1">Link</a></div>',
+      "https://example.com",
+      "key",
+      "model",
+      () => {}
+    );
+
+    // The second call's messages should include the assistant message with reasoning_details
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const assistantMsg = secondCallMessages.find((m: any) => m.role === "assistant");
+    expect(assistantMsg).toBeDefined();
+    expect(assistantMsg.reasoning_details).toEqual([reasoningDetail]);
+  });
+
+  it("works without onEvent callback (backward compatible)", async () => {
+    mockCreate.mockReturnValue(mockTextStream(JSON.stringify(VALID_CONFIG)));
+
+    const result = await generateParserConfig(
+      HTML_WITH_ITEMS,
+      "https://example.com",
+      "key",
+      "model"
+      // no onEvent callback
+    );
+
+    expect(result.unsuitable).toBe(false);
   });
 });
 

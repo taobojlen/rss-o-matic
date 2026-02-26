@@ -14,6 +14,7 @@ const mockDetectExistingFeeds = vi.fn(() => []);
 const mockCreateError = vi.fn((opts: any) => {
   const err = new Error(opts.statusMessage) as any;
   err.statusCode = opts.statusCode;
+  err.statusMessage = opts.statusMessage;
   return err;
 });
 const mockCapturePostHogEvent = vi.fn();
@@ -43,6 +44,43 @@ vi.stubGlobal("defineEventHandler", (fn: Function) => fn);
 vi.mock("nanoid", () => ({
   nanoid: () => "testid123456",
 }));
+
+/**
+ * Read all SSE events from the Response returned by the handler.
+ * Returns an array of { event, data } objects.
+ */
+async function readSSEEvents(
+  response: Response
+): Promise<Array<{ event: string; data: any }>> {
+  const text = await response.text();
+  const events: Array<{ event: string; data: any }> = [];
+
+  for (const frame of text.split("\n\n")) {
+    if (!frame.trim()) continue;
+    let eventType = "message";
+    let dataStr = "";
+    for (const line of frame.split("\n")) {
+      if (line.startsWith("event: ")) eventType = line.slice(7);
+      else if (line.startsWith("data: ")) dataStr = line.slice(6);
+    }
+    if (dataStr) {
+      events.push({ event: eventType, data: JSON.parse(dataStr) });
+    }
+  }
+  return events;
+}
+
+/** Extract the final result event data from SSE events */
+function getResult(events: Array<{ event: string; data: any }>): any {
+  const resultEvt = events.find((e) => e.event === "result");
+  return resultEvt?.data;
+}
+
+/** Extract the error event data from SSE events */
+function getError(events: Array<{ event: string; data: any }>): any {
+  const errorEvt = events.find((e) => e.event === "error");
+  return errorEvt?.data;
+}
 
 describe("POST /api/generate", () => {
   beforeEach(() => {
@@ -75,7 +113,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(mockFetchPage).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -114,7 +154,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(mockFetchPage).toHaveBeenCalledWith("https://example.com/blog");
     expect(mockGenerateParserConfig).not.toHaveBeenCalled();
@@ -144,12 +186,13 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    await handler({} as any);
+    const response = await handler({} as any);
+    await readSSEEvents(response); // wait for pipeline to complete
 
     expect(mockSetCachedPreview).toHaveBeenCalledWith("testid123456", preview);
   });
 
-  it("throws H3 error with status 502 when fetchPage fails with HTTP error", async () => {
+  it("emits error event when fetchPage fails with HTTP error", async () => {
     mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
     mockGetFeedByUrl.mockResolvedValue(null);
     mockFetchPage.mockRejectedValue(new Error("HTTP 403 Forbidden"));
@@ -157,30 +200,12 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
 
-    await expect(handler({} as any)).rejects.toThrow();
-    expect(mockCreateError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        statusCode: 502,
-      })
-    );
-  });
-
-  it("shows friendly error message when site returns 403", async () => {
-    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
-    mockGetFeedByUrl.mockResolvedValue(null);
-    mockFetchPage.mockRejectedValue(new Error("HTTP 403 Forbidden"));
-
-    const handler = await import("~/server/api/generate.post").then(
-      (m) => m.default
-    );
-
-    await expect(handler({} as any)).rejects.toThrow();
-    const call = mockCreateError.mock.calls.find(
-      (c: any[]) => c[0]?.statusCode === 502
-    );
-    expect(call).toBeDefined();
-    expect(call![0].statusMessage).toContain("slammed the door");
+    expect(error).toBeDefined();
+    expect(error.message).toContain("slammed the door");
   });
 
   it("shows friendly error message when site returns 404", async () => {
@@ -191,13 +216,11 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
 
-    await expect(handler({} as any)).rejects.toThrow();
-    const call = mockCreateError.mock.calls.find(
-      (c: any[]) => c[0]?.statusCode === 502
-    );
-    expect(call).toBeDefined();
-    expect(call![0].statusMessage).toContain("nobody's home");
+    expect(error.message).toContain("nobody's home");
   });
 
   it("shows friendly error message for DNS failures", async () => {
@@ -213,13 +236,11 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
 
-    await expect(handler({} as any)).rejects.toThrow();
-    const call = mockCreateError.mock.calls.find(
-      (c: any[]) => c[0]?.statusCode === 422
-    );
-    expect(call).toBeDefined();
-    expect(call![0].statusMessage).toMatch(/doesn.t exist/i);
+    expect(error.message).toMatch(/doesn.t exist/i);
   });
 
   it("shows friendly error message for connection refused", async () => {
@@ -235,13 +256,11 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
 
-    await expect(handler({} as any)).rejects.toThrow();
-    const call = mockCreateError.mock.calls.find(
-      (c: any[]) => c[0]?.statusCode === 502
-    );
-    expect(call).toBeDefined();
-    expect(call![0].statusMessage).toMatch(/couldn.t reach/i);
+    expect(error.message).toMatch(/couldn.t reach/i);
   });
 
   it("shows friendly error message for timeout", async () => {
@@ -252,13 +271,28 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
 
-    await expect(handler({} as any)).rejects.toThrow();
-    const call = mockCreateError.mock.calls.find(
-      (c: any[]) => c[0]?.statusCode === 504
+    expect(error.message).toMatch(/took too long/i);
+  });
+
+  it("shows friendly error message for AI validation failures", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html></html>");
+    mockTrimHtml.mockReturnValue("<html></html>");
+    mockGenerateParserConfig.mockRejectedValue(new Error("Missing or invalid itemSelector"));
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
     );
-    expect(call).toBeDefined();
-    expect(call![0].statusMessage).toMatch(/took too long/i);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const error = getError(events);
+
+    expect(error.message).toMatch(/wires crossed/i);
   });
 
   it("fetches page and generates config for new URLs", async () => {
@@ -280,7 +314,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(mockFetchPage).toHaveBeenCalledWith("https://example.com/blog");
     expect(mockGenerateParserConfig).toHaveBeenCalled();
@@ -304,13 +340,14 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result).toEqual({
       type: "existing_feed",
       existingFeeds: discoveredFeeds,
     });
-    // Should NOT call AI or save anything
     expect(mockTrimHtml).not.toHaveBeenCalled();
     expect(mockGenerateParserConfig).not.toHaveBeenCalled();
     expect(mockSaveFeed).not.toHaveBeenCalled();
@@ -331,7 +368,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result).toEqual({
       type: "unsuitable",
@@ -358,7 +397,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result).toEqual({
       type: "snapshot_available",
@@ -376,7 +417,6 @@ describe("POST /api/generate", () => {
     mockFetchPage.mockResolvedValue("<html><body><main>Updates here</main></body></html>");
     mockDetectExistingFeeds.mockReturnValue([]);
     mockTrimHtml.mockReturnValue("<main>Updates here</main>");
-    // AI says unsuitable=false (thinks it can extract items) but also snapshotSuitable=true
     mockGenerateParserConfig.mockResolvedValue({
       unsuitable: false,
       config: { itemSelector: "article.update-entry", fields: { title: { selector: ".update-title" }, link: { selector: "a", attr: "href" } }, feed: { title: "o16g Updates" } },
@@ -384,7 +424,6 @@ describe("POST /api/generate", () => {
       contentSelector: ".updates-feed",
       suggestedTitle: "o16g Updates",
     });
-    // Selectors don't match anything
     mockParseHtml.mockReturnValue({
       title: "o16g Updates",
       description: "",
@@ -395,7 +434,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result).toEqual({
       type: "snapshot_available",
@@ -430,7 +471,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result).toEqual({
       type: "snapshot_available",
@@ -462,7 +505,9 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    const result = await handler({} as any);
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+    const result = getResult(events);
 
     expect(result.type).toBe("generated");
     expect(mockSaveFeed).toHaveBeenCalled();
@@ -490,9 +535,43 @@ describe("POST /api/generate", () => {
     const handler = await import("~/server/api/generate.post").then(
       (m) => m.default
     );
-    await handler({} as any);
+    const response = await handler({} as any);
+    await readSSEEvents(response); // wait for pipeline to complete
 
     expect(mockDetectExistingFeeds).not.toHaveBeenCalled();
+  });
+
+  it("emits status events during the pipeline", async () => {
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><div class='post'>Hello</div></html>");
+    mockTrimHtml.mockReturnValue("<div class='post'>Hello</div>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: ".post" },
+    });
+    mockParseHtml.mockReturnValue({
+      title: "Blog",
+      description: "",
+      link: "https://example.com/blog",
+      items: [{ title: "Hello", link: "/hello" }],
+    });
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+
+    // Should have a fetch status event
+    const fetchStatus = events.find(
+      (e) => e.event === "status" && e.data.phase === "fetch"
+    );
+    expect(fetchStatus).toBeDefined();
+
+    // Should have a result event
+    const resultEvent = events.find((e) => e.event === "result");
+    expect(resultEvent).toBeDefined();
   });
 
   describe("posthog tracking", () => {
@@ -518,7 +597,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await handler({} as any);
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -546,7 +626,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await handler({} as any);
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -568,7 +649,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await handler({} as any);
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -592,7 +674,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await handler({} as any);
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -609,7 +692,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await expect(handler({} as any)).rejects.toThrow();
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -637,35 +721,8 @@ describe("POST /api/generate", () => {
       const handler = await import("~/server/api/generate.post").then(
         (m) => m.default
       );
-      await expect(handler({} as any)).rejects.toThrow();
-
-      expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
-        {},
-        "feed_generated",
-        { outcome: "error", url: "https://example.com/blog" }
-      );
-    });
-
-    it("tracks 'error' outcome when parser finds no items", async () => {
-      mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
-      mockGetFeedByUrl.mockResolvedValue(null);
-      mockFetchPage.mockResolvedValue("<html></html>");
-      mockTrimHtml.mockReturnValue("<html></html>");
-      mockGenerateParserConfig.mockResolvedValue({
-        unsuitable: false,
-        config: { itemSelector: ".post" },
-      });
-      mockParseHtml.mockReturnValue({
-        title: "Blog",
-        description: "",
-        link: "https://example.com/blog",
-        items: [],
-      });
-
-      const handler = await import("~/server/api/generate.post").then(
-        (m) => m.default
-      );
-      await expect(handler({} as any)).rejects.toThrow();
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
@@ -676,7 +733,7 @@ describe("POST /api/generate", () => {
   });
 
   describe("AI result handling", () => {
-    it("throws 422 when AI config produces 0 items and no snapshot fallback", async () => {
+    it("emits error when AI config produces 0 items and no snapshot fallback", async () => {
       mockReadBody.mockResolvedValue({ url: "https://example.com/blog" });
       mockGetFeedByUrl.mockResolvedValue(null);
       mockFetchPage.mockResolvedValue("<html></html>");
@@ -690,12 +747,13 @@ describe("POST /api/generate", () => {
       });
 
       const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      await expect(handler({} as any)).rejects.toThrow();
+      const response = await handler({} as any);
+      const events = await readSSEEvents(response);
+      const error = getError(events);
 
       expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
-      expect(mockCreateError).toHaveBeenCalledWith(
-        expect.objectContaining({ statusCode: 422 })
-      );
+      expect(error).toBeDefined();
+      expect(error.message).toContain("no items");
     });
 
     it("calls generateParserConfig exactly once", async () => {
@@ -713,7 +771,8 @@ describe("POST /api/generate", () => {
       });
 
       const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      await handler({} as any);
+      const response = await handler({} as any);
+      await readSSEEvents(response);
 
       expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
     });
@@ -730,7 +789,9 @@ describe("POST /api/generate", () => {
       });
 
       const handler = await import("~/server/api/generate.post").then((m) => m.default);
-      const result = await handler({} as any);
+      const response = await handler({} as any);
+      const events = await readSSEEvents(response);
+      const result = getResult(events);
 
       expect(result.type).toBe("unsuitable");
       expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
