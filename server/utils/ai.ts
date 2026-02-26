@@ -27,15 +27,15 @@ const FIELD_SELECTOR_SCHEMA = {
   type: "object",
   properties: {
     selector: { type: "string" },
-    attr: { type: "string" },
-    html: { type: "boolean" },
+    attr: { anyOf: [{ type: "string" }, { type: "null" }] },
+    html: { anyOf: [{ type: "boolean" }, { type: "null" }] },
   },
-  required: ["selector"],
+  required: ["selector", "attr", "html"],
   additionalProperties: false,
 };
 
-const FIELD_SELECTOR_OR_STRING_SCHEMA = {
-  oneOf: [{ type: "string" }, FIELD_SELECTOR_SCHEMA],
+const NULLABLE_FIELD_SELECTOR_SCHEMA = {
+  anyOf: [FIELD_SELECTOR_SCHEMA, { type: "null" }],
 };
 
 const PARSER_CONFIG_SCHEMA = {
@@ -49,11 +49,11 @@ const PARSER_CONFIG_SCHEMA = {
     feed: {
       type: "object",
       properties: {
-        title: FIELD_SELECTOR_OR_STRING_SCHEMA,
-        description: FIELD_SELECTOR_OR_STRING_SCHEMA,
-        link: FIELD_SELECTOR_OR_STRING_SCHEMA,
+        title: { type: "string" },
+        description: NULLABLE_FIELD_SELECTOR_SCHEMA,
+        link: NULLABLE_FIELD_SELECTOR_SCHEMA,
       },
-      required: ["title"],
+      required: ["title", "description", "link"],
       additionalProperties: false,
     },
     itemSelector: { type: "string" },
@@ -62,13 +62,13 @@ const PARSER_CONFIG_SCHEMA = {
       properties: {
         title: FIELD_SELECTOR_SCHEMA,
         link: FIELD_SELECTOR_SCHEMA,
-        description: FIELD_SELECTOR_SCHEMA,
-        pubDate: FIELD_SELECTOR_SCHEMA,
-        author: FIELD_SELECTOR_SCHEMA,
-        category: FIELD_SELECTOR_SCHEMA,
-        image: FIELD_SELECTOR_SCHEMA,
+        description: NULLABLE_FIELD_SELECTOR_SCHEMA,
+        pubDate: NULLABLE_FIELD_SELECTOR_SCHEMA,
+        author: NULLABLE_FIELD_SELECTOR_SCHEMA,
+        category: NULLABLE_FIELD_SELECTOR_SCHEMA,
+        image: NULLABLE_FIELD_SELECTOR_SCHEMA,
       },
-      required: ["title", "link"],
+      required: ["title", "link", "description", "pubDate", "author", "category", "image"],
       additionalProperties: false,
     },
   },
@@ -107,6 +107,22 @@ Rules:
 
 HTML:
 ${trimmedHtml}`;
+}
+
+/**
+ * Remove keys with null values from the AI response so that
+ * validateParserConfig treats them as absent optional fields.
+ */
+function stripNullFields(obj: unknown): void {
+  if (typeof obj !== "object" || obj === null) return;
+  const record = obj as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (record[key] === null) {
+      delete record[key];
+    } else if (typeof record[key] === "object" && record[key] !== null) {
+      stripNullFields(record[key]);
+    }
+  }
 }
 
 export async function generateParserConfig(
@@ -180,6 +196,12 @@ export async function generateParserConfig(
   } catch {
     throw new Error(`AI returned invalid JSON: ${content.slice(0, 200)}`);
   }
+
+  // Strip null values from nullable schema fields before validation.
+  // Strict-mode JSON schemas require all properties but use anyOf with null
+  // to represent optional fields. Remove those nulls so validateParserConfig
+  // sees undefined instead.
+  stripNullFields(parsed);
 
   const raw = parsed as Record<string, unknown>;
   if (raw.unsuitable === true && typeof raw.unsuitableReason === "string") {
