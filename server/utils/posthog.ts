@@ -1,6 +1,21 @@
 import { PostHog } from "posthog-node";
 import type { H3Event } from "h3";
 
+export interface PostHogSessionContext {
+  sessionId: string | undefined;
+  distinctId: string | undefined;
+}
+
+/**
+ * Extract PostHog session context from incoming request headers.
+ * The client-side plugin sends these headers with every API request.
+ */
+export function getPostHogSessionContext(event: H3Event): PostHogSessionContext {
+  const sessionId = getRequestHeader(event, "x-posthog-session-id");
+  const distinctId = getRequestHeader(event, "x-posthog-distinct-id");
+  return { sessionId, distinctId };
+}
+
 let _client: PostHog | null = null;
 
 /**
@@ -31,7 +46,8 @@ export function usePostHogClient(): PostHog {
  */
 export async function captureServerException(
   error: unknown,
-  props?: Record<string, unknown>
+  props?: Record<string, unknown>,
+  sessionContext?: PostHogSessionContext
 ): Promise<void> {
   const config = useRuntimeConfig();
   const { publicKey, host } = config.public.posthog as {
@@ -45,8 +61,11 @@ export async function captureServerException(
     flushAt: 1,
   });
 
-  client.captureException(error, crypto.randomUUID(), {
+  const distinctId = sessionContext?.distinctId || crypto.randomUUID();
+
+  client.captureException(error, distinctId, {
     $process_person_profile: false,
+    ...(sessionContext?.sessionId ? { $session_id: sessionContext.sessionId } : {}),
     ...props,
   });
 
@@ -74,11 +93,15 @@ export function capturePostHogEvent(
     flushAt: 1,
   });
 
+  const { sessionId, distinctId: clientDistinctId } = getPostHogSessionContext(h3Event);
+  const distinctId = clientDistinctId || crypto.randomUUID();
+
   client.capture({
-    distinctId: crypto.randomUUID(),
+    distinctId,
     event: eventName,
     properties: {
       $process_person_profile: false,
+      ...(sessionId ? { $session_id: sessionId } : {}),
       ...properties,
     },
   });

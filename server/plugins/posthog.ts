@@ -1,4 +1,4 @@
-import { captureServerException } from "../utils/posthog";
+import { captureServerException, getPostHogSessionContext } from "../utils/posthog";
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook("error", (error, { event }) => {
@@ -16,7 +16,8 @@ export default defineNitroPlugin((nitroApp) => {
       props.method = event.method;
     }
 
-    const done = captureServerException(error, props);
+    const sessionContext = event ? getPostHogSessionContext(event) : undefined;
+    const done = captureServerException(error, props, sessionContext);
 
     const ctx = event?.context?.cloudflare?.context;
     if (ctx?.waitUntil) {
