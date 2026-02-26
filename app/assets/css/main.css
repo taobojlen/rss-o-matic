@@ -386,10 +386,10 @@ body {
 
 .form-hint {
   font-size: 0.8rem;
-  color: #6a8882;
+  color: #4a6860;
   text-align: center;
   flex-basis: 100%;
-  margin-top: -0.5rem;
+  margin-top: 0.25rem;
 }
 
 /* ============================================================
