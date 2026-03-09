@@ -12,7 +12,7 @@ export default defineNuxtConfig({
     public: {
       posthog: {
         publicKey: 'phc_CkAp2xq3iYAT1KT7v4TVAmDSR6zjQ0JoBnDpCL4AMS9',
-        host: 'https://eu.i.posthog.com',
+        host: 'https://ph.btao.org',
       },
     },
   },
