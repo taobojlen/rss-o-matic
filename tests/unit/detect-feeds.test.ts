@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectExistingFeeds } from "~/server/utils/detect-feeds";
+import { detectExistingFeeds, parseExistingFeedItems } from "~/server/utils/detect-feeds";
 
 const SOURCE_URL = "https://example.com/blog";
 
@@ -126,5 +126,74 @@ describe("detectExistingFeeds", () => {
       SOURCE_URL
     );
     expect(result[0].title).toBeUndefined();
+  });
+});
+
+describe("parseExistingFeedItems", () => {
+  it("returns the three latest RSS items with their links and dates", () => {
+    const result = parseExistingFeedItems(
+      `<?xml version="1.0"?>
+      <rss><channel>
+        <item><title>First transmission</title><link>https://example.com/first</link><pubDate>Thu, 10 Jul 2026 12:00:00 GMT</pubDate></item>
+        <item><title>Second transmission</title><link>https://example.com/second</link></item>
+        <item><title>Third transmission</title><link>https://example.com/third</link></item>
+        <item><title>Fourth transmission</title><link>https://example.com/fourth</link></item>
+      </channel></rss>`,
+      "rss"
+    );
+
+    expect(result).toEqual([
+      {
+        title: "First transmission",
+        link: "https://example.com/first",
+        pubDate: "Thu, 10 Jul 2026 12:00:00 GMT",
+      },
+      { title: "Second transmission", link: "https://example.com/second" },
+      { title: "Third transmission", link: "https://example.com/third" },
+    ]);
+  });
+
+  it("extracts Atom entries and their alternate links", () => {
+    const result = parseExistingFeedItems(
+      `<feed xmlns="http://www.w3.org/2005/Atom">
+        <entry><title>Atom update</title><link rel="alternate" href="/updates/1"/><updated>2026-07-10T12:00:00Z</updated></entry>
+      </feed>`,
+      "atom",
+      "https://example.com/feed.atom"
+    );
+
+    expect(result).toEqual([
+      {
+        title: "Atom update",
+        link: "https://example.com/updates/1",
+        pubDate: "2026-07-10T12:00:00Z",
+      },
+    ]);
+  });
+
+  it("extracts JSON Feed items", () => {
+    const result = parseExistingFeedItems(
+      JSON.stringify({
+        version: "https://jsonfeed.org/version/1.1",
+        title: "JSON Feed",
+        items: [
+          {
+            id: "https://example.com/updates/1",
+            title: "JSON update",
+            url: "https://example.com/updates/1",
+            date_published: "2026-07-10T12:00:00Z",
+          },
+        ],
+      }),
+      "json"
+    );
+
+    expect(result).toEqual([
+      {
+        title: "JSON update",
+        link: "https://example.com/updates/1",
+        pubDate: "2026-07-10T12:00:00Z",
+      },
+    ]);
   });
 });

@@ -11,6 +11,7 @@ const mockGetCachedPreview = vi.fn();
 const mockSetCachedPreview = vi.fn();
 const mockNormalizeUrl = vi.fn((url: string) => url);
 const mockDetectExistingFeeds = vi.fn(() => []);
+const mockGetExistingFeedPreviews = vi.fn((feeds) => Promise.resolve(feeds));
 const mockCreateError = vi.fn((opts: any) => {
   const err = new Error(opts.statusMessage) as any;
   err.statusCode = opts.statusCode;
@@ -35,6 +36,7 @@ vi.stubGlobal("setCachedPreview", mockSetCachedPreview);
 vi.stubGlobal("normalizeUrl", mockNormalizeUrl);
 vi.stubGlobal("capturePostHogEvent", mockCapturePostHogEvent);
 vi.stubGlobal("detectExistingFeeds", mockDetectExistingFeeds);
+vi.stubGlobal("getExistingFeedPreviews", mockGetExistingFeedPreviews);
 vi.stubGlobal("createError", mockCreateError);
 vi.stubGlobal("readBody", mockReadBody);
 vi.stubGlobal("useRuntimeConfig", mockUseRuntimeConfig);
@@ -87,6 +89,7 @@ describe("POST /api/generate", () => {
     vi.clearAllMocks();
     mockNormalizeUrl.mockImplementation((url: string) => url);
     mockDetectExistingFeeds.mockReturnValue([]);
+    mockGetExistingFeedPreviews.mockImplementation((feeds) => Promise.resolve(feeds));
   });
 
   it("returns existing feed with type 'generated' without fetching the page", async () => {
@@ -348,9 +351,50 @@ describe("POST /api/generate", () => {
       type: "existing_feed",
       existingFeeds: discoveredFeeds,
     });
+    expect(mockGetExistingFeedPreviews).toHaveBeenCalledWith(discoveredFeeds);
     expect(mockTrimHtml).not.toHaveBeenCalled();
     expect(mockGenerateParserConfig).not.toHaveBeenCalled();
     expect(mockSaveFeed).not.toHaveBeenCalled();
+  });
+
+  it("uses AI generation when forceAi is true, despite an advertised feed", async () => {
+    const discoveredFeeds = [
+      { url: "https://example.com/feed.xml", title: "My Blog", feedType: "rss" as const },
+    ];
+    const preview = {
+      title: "AI Blog",
+      description: "",
+      link: "https://example.com/blog",
+      items: [{ title: "Fresh post", link: "https://example.com/fresh" }],
+    };
+
+    mockReadBody.mockResolvedValue({ url: "https://example.com/blog", forceAi: true });
+    mockGetFeedByUrl.mockResolvedValue(null);
+    mockFetchPage.mockResolvedValue("<html><article>Fresh post</article></html>");
+    mockDetectExistingFeeds.mockReturnValue(discoveredFeeds);
+    mockTrimHtml.mockReturnValue("<article>Fresh post</article>");
+    mockGenerateParserConfig.mockResolvedValue({
+      unsuitable: false,
+      config: { itemSelector: "article" },
+    });
+    mockParseHtml.mockReturnValue(preview);
+
+    const handler = await import("~/server/api/generate.post").then(
+      (m) => m.default
+    );
+    const response = await handler({} as any);
+    const events = await readSSEEvents(response);
+
+    expect(getResult(events)).toMatchObject({ type: "generated", preview });
+    expect(mockGetExistingFeedPreviews).not.toHaveBeenCalled();
+    expect(mockTrimHtml).toHaveBeenCalledWith("<html><article>Fresh post</article></html>");
+    expect(mockGenerateParserConfig).toHaveBeenCalledTimes(1);
+    expect(mockSaveFeed).toHaveBeenCalled();
+    expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
+      {},
+      "feed_generated",
+      { outcome: "created", url: "https://example.com/blog", forced: true }
+    );
   });
 
   it("returns unsuitable when AI flags page as unsuitable and not snapshot-suitable", async () => {
@@ -603,7 +647,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "existing", url: "https://example.com/blog" }
+        { outcome: "existing", url: "https://example.com/blog", forced: false }
       );
     });
 
@@ -632,7 +676,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "created", url: "https://example.com/blog" }
+        { outcome: "created", url: "https://example.com/blog", forced: false }
       );
     });
 
@@ -655,7 +699,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "existing_feed", url: "https://example.com/blog" }
+        { outcome: "existing_feed", url: "https://example.com/blog", forced: false }
       );
     });
 
@@ -680,7 +724,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "unsuitable", url: "https://example.com" }
+        { outcome: "unsuitable", url: "https://example.com", forced: false }
       );
     });
 
@@ -698,7 +742,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "error", url: "https://example.com/blog" }
+        { outcome: "error", url: "https://example.com/blog", forced: false }
       );
     });
 
@@ -727,7 +771,7 @@ describe("POST /api/generate", () => {
       expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
         {},
         "feed_generated",
-        { outcome: "error", url: "https://example.com/blog" }
+        { outcome: "error", url: "https://example.com/blog", forced: false }
       );
     });
   });

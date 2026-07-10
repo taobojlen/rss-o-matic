@@ -170,7 +170,7 @@ describe("POST /api/generate-snapshot", () => {
     expect(mockCapturePostHogEvent).toHaveBeenCalledWith(
       {},
       "feed_generated",
-      { outcome: "snapshot_created", url: "https://example.com/updates" }
+      { outcome: "snapshot_created", url: "https://example.com/updates", forced: false }
     );
   });
 });

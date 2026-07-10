@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { parseAtomFeed, parseRssFeed } from "feedsmith";
 import { generateRssXml, generateAtomXml } from "~/server/utils/feed-generator";
 import type { ExtractedFeed } from "~/server/utils/schema";
 
@@ -110,7 +111,7 @@ describe("generateRssXml", () => {
     expect(xml).not.toContain("<enclosure");
   });
 
-  it("escapes special XML characters", () => {
+  it("safely wraps special XML characters in CDATA", () => {
     const feed: ExtractedFeed = {
       title: 'Feed & <Friends>',
       description: "",
@@ -118,13 +119,20 @@ describe("generateRssXml", () => {
       items: [{ title: "A & B", link: "https://example.com/a&b" }],
     };
     const xml = generateRssXml(feed, RSS_SELF_URL);
-    expect(xml).not.toContain("Feed & <Friends>");
-    expect(xml).toContain("&amp;");
+    expect(xml).toContain("<![CDATA[Feed & <Friends>]]>");
+    expect(xml).toContain("<![CDATA[A & B]]>");
   });
 
   it("includes xml-stylesheet for pretty rendering", () => {
     const xml = generateRssXml(FEED, RSS_SELF_URL);
     expect(xml).toContain("pretty-feed-v3.xsl");
+  });
+
+  it("round-trips through Feedsmith's RSS parser", () => {
+    const parsed = parseRssFeed(generateRssXml(FEED, RSS_SELF_URL));
+
+    expect(parsed.title).toBe("Test Feed");
+    expect(parsed.items?.[0]?.title).toBe("Item 1");
   });
 });
 
@@ -201,7 +209,7 @@ describe("generateAtomXml", () => {
     expect(xml).toContain("category");
   });
 
-  it("escapes special XML characters", () => {
+  it("safely wraps special XML characters in CDATA", () => {
     const feed: ExtractedFeed = {
       title: 'Feed & <Friends>',
       description: "",
@@ -209,7 +217,7 @@ describe("generateAtomXml", () => {
       items: [{ title: "A & B", link: "https://example.com/a&b" }],
     };
     const xml = generateAtomXml(feed, ATOM_SELF_URL);
-    expect(xml).not.toContain("Feed & <Friends>");
+    expect(xml).toContain("<![CDATA[Feed & <Friends>]]>");
     expect(xml).toContain("&amp;");
   });
 
@@ -229,5 +237,12 @@ describe("generateAtomXml", () => {
     expect(xml).not.toContain("Desc");
     expect(xml).not.toContain("<name>");
     expect(xml).not.toContain("category");
+  });
+
+  it("round-trips through Feedsmith's Atom parser", () => {
+    const parsed = parseAtomFeed(generateAtomXml(FEED, ATOM_SELF_URL));
+
+    expect(parsed.title?.value).toBe("Test Feed");
+    expect(parsed.entries?.[0]?.title?.value).toBe("Item 1");
   });
 });

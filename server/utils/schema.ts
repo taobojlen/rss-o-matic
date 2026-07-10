@@ -55,10 +55,17 @@ export interface ExtractedFeed {
   items: FeedItem[];
 }
 
+export interface DiscoveredFeedItem {
+  title: string;
+  link?: string;
+  pubDate?: string;
+}
+
 export interface DiscoveredFeed {
   url: string;
   title?: string;
   feedType: "rss" | "atom" | "json";
+  items?: DiscoveredFeedItem[];
 }
 
 export interface SnapshotConfig {
