@@ -602,6 +602,41 @@ a.btn {
   word-break: break-all;
 }
 
+.existing-feed-preview {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #8aada4;
+}
+
+.existing-feed-preview-heading {
+  color: #3a6a38;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.45rem;
+}
+
+.existing-feed-preview-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #4a5854;
+  font-size: 0.85rem;
+}
+
+.existing-feed-preview-list li + li {
+  margin-top: 0.3rem;
+}
+
+.existing-feed-preview-list a {
+  color: #15605a;
+}
+
+.existing-feed-preview-list time {
+  color: #6a8882;
+  font-size: 0.8rem;
+  margin-left: 0.35rem;
+}
+
 .btn-sm {
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;

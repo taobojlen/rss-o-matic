@@ -71,7 +71,7 @@ function friendlyErrorMessage(err: unknown): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ url?: string }>(event);
+  const body = await readBody<{ url?: string; forceAi?: boolean }>(event);
 
   if (!body?.url || typeof body.url !== "string") {
     throw createError({ statusCode: 400, statusMessage: "url is required" });
@@ -85,6 +85,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig();
+  const forced = body.forceAi === true;
 
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -96,6 +97,14 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  function captureFeedGenerated(outcome: string) {
+    capturePostHogEvent(event, "feed_generated", {
+      outcome,
+      url: normalized,
+      forced,
+    });
+  }
+
   // Run the pipeline asynchronously, writing SSE frames along the way
   (async () => {
     try {
@@ -104,7 +113,7 @@ export default defineEventHandler(async (event) => {
       if (existing) {
         const parserConfig = JSON.parse(existing.parser_config);
         const cachedPreview = await getCachedPreview(existing.id);
-        capturePostHogEvent(event, "feed_generated", { outcome: "existing", url: normalized });
+        captureFeedGenerated("existing");
         if (cachedPreview) {
           emit({
             event: "result",
@@ -144,9 +153,10 @@ export default defineEventHandler(async (event) => {
 
       // 2. Check for existing RSS/Atom feeds advertised in the HTML
       const existingFeeds = detectExistingFeeds(html, normalized);
-      if (existingFeeds.length > 0) {
-        capturePostHogEvent(event, "feed_generated", { outcome: "existing_feed", url: normalized });
-        emit({ event: "result", data: { type: "existing_feed", existingFeeds } });
+      if (existingFeeds.length > 0 && body.forceAi !== true) {
+        const feedsWithPreviews = await getExistingFeedPreviews(existingFeeds);
+        captureFeedGenerated("existing_feed");
+        emit({ event: "result", data: { type: "existing_feed", existingFeeds: feedsWithPreviews } });
         return;
       }
 
@@ -165,7 +175,7 @@ export default defineEventHandler(async (event) => {
       // 5. Handle unsuitable / snapshot-available results
       if (aiResult.unsuitable) {
         if (aiResult.snapshotSuitable && aiResult.contentSelector) {
-          capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+          captureFeedGenerated("snapshot_available");
           emit({
             event: "result",
             data: {
@@ -177,7 +187,7 @@ export default defineEventHandler(async (event) => {
           });
           return;
         }
-        capturePostHogEvent(event, "feed_generated", { outcome: "unsuitable", url: normalized });
+        captureFeedGenerated("unsuitable");
         emit({
           event: "result",
           data: { type: "unsuitable", reason: aiResult.reason },
@@ -192,7 +202,7 @@ export default defineEventHandler(async (event) => {
       // A single matched item + snapshotSuitable likely means the AI matched
       // the whole content block as one "item" — snapshot monitoring is better
       if (preview.items.length === 1 && aiResult.snapshotSuitable && aiResult.contentSelector) {
-        capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+        captureFeedGenerated("snapshot_available");
         emit({
           event: "result",
           data: {
@@ -207,7 +217,7 @@ export default defineEventHandler(async (event) => {
 
       if (preview.items.length === 0) {
         if (aiResult.snapshotSuitable && aiResult.contentSelector) {
-          capturePostHogEvent(event, "feed_generated", { outcome: "snapshot_available", url: normalized });
+          captureFeedGenerated("snapshot_available");
           emit({
             event: "result",
             data: {
@@ -220,7 +230,7 @@ export default defineEventHandler(async (event) => {
           return;
         }
 
-        capturePostHogEvent(event, "feed_generated", { outcome: "error", url: normalized });
+        captureFeedGenerated("error");
         emit({
           event: "error",
           data: { message: "AI-generated config found no items on the page. Try a different URL." },
@@ -234,7 +244,7 @@ export default defineEventHandler(async (event) => {
       await setCachedPreview(feedId, preview);
 
       // 8. Return preview
-      capturePostHogEvent(event, "feed_generated", { outcome: "created", url: normalized });
+      captureFeedGenerated("created");
       emit({
         event: "result",
         data: {
@@ -247,7 +257,7 @@ export default defineEventHandler(async (event) => {
         },
       });
     } catch (err: unknown) {
-      capturePostHogEvent(event, "feed_generated", { outcome: "error", url: normalized });
+      captureFeedGenerated("error");
       console.error("Generate error:", err);
       emit({ event: "error", data: { message: friendlyErrorMessage(err) } });
     } finally {

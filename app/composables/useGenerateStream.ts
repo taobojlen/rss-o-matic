@@ -147,7 +147,7 @@ export function useGenerateStream() {
     }
   }
 
-  async function start(url: string) {
+  async function start(url: string, options: { forceAi?: boolean } = {}) {
     // Reset state
     isStreaming.value = true;
     logEntries.value = [];
@@ -161,7 +161,10 @@ export function useGenerateStream() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url,
+          ...(options.forceAi ? { forceAi: true } : {}),
+        }),
         signal: abortController.signal,
       });
 

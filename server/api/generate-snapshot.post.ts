@@ -86,6 +86,7 @@ export default defineEventHandler(async (event) => {
   capturePostHogEvent(event, "feed_generated", {
     outcome: "snapshot_created",
     url: normalized,
+    forced: false,
   });
 
   return {

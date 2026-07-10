@@ -8,7 +8,10 @@ const logger = consola.withTag("fetch-page");
 /**
  * Fetch the HTML of a URL. Follows redirects. Timeout after 15 seconds.
  */
-export async function fetchPage(url: string): Promise<string> {
+export async function fetchPage(
+  url: string,
+  accept = "text/html,application/xhtml+xml"
+): Promise<string> {
   const parsed = new URL(url);
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("Only HTTP and HTTPS URLs are supported");
@@ -24,7 +27,7 @@ export async function fetchPage(url: string): Promise<string> {
     const response = await fetch(url, {
       headers: {
         "User-Agent": USER_AGENT,
-        Accept: "text/html,application/xhtml+xml",
+        Accept: accept,
       },
       redirect: "follow",
       signal: controller.signal,

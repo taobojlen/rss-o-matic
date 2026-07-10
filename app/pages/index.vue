@@ -14,10 +14,17 @@ interface Preview {
   items: FeedItem[]
 }
 
+interface ExistingFeedItem {
+  title: string
+  link?: string
+  pubDate?: string
+}
+
 interface DiscoveredFeed {
   url: string
   title?: string
   feedType: 'rss' | 'atom' | 'json'
+  items?: ExistingFeedItem[]
 }
 
 type GenerateResponse =
@@ -62,7 +69,7 @@ onMounted(() => {
   origin.value = window.location.origin
 })
 
-async function handleSubmit() {
+async function generateFeed(forceAi = false) {
   if (!url.value.trim()) return
 
   step.value = 'loading'
@@ -72,7 +79,7 @@ async function handleSubmit() {
   errorMessage.value = ''
   stream.reset()
 
-  await stream.start(url.value.trim())
+  await stream.start(url.value.trim(), { forceAi })
 
   // Handle result
   const res = stream.result.value as GenerateResponse | null
@@ -103,6 +110,14 @@ async function handleSubmit() {
     errorMessage.value = stream.error.value
     step.value = 'error'
   }
+}
+
+async function handleSubmit() {
+  await generateFeed()
+}
+
+async function handleCreateAiFeed() {
+  await generateFeed(true)
 }
 
 async function handleCreateSnapshotFeed() {
@@ -228,9 +243,10 @@ function handleReset() {
   </div>
 
   <div v-if="step === 'existing_feed'" class="existing-feed-box">
-    <h2 class="existing-feed-heading">Good news, partner!</h2>
+    <h2 class="existing-feed-heading">A broadcast is already on the air!</h2>
     <p class="existing-feed-message">
-      This site already broadcasts {{ existingFeeds.length === 1 ? 'a feed' : 'feeds' }} loud and clear. No need for our machines!
+      We found {{ existingFeeds.length === 1 ? 'a feed' : 'feeds' }} the site publishes.
+      Check the latest transmissions, or let our AI analyzer build a fresh feed from the page.
     </p>
     <ul class="existing-feed-list">
       <li v-for="(feed, i) in existingFeeds" :key="i" class="existing-feed-item">
@@ -246,9 +262,24 @@ function handleReset() {
             {{ copied ? 'Copied!' : 'Copy' }}
           </button>
         </div>
+        <div v-if="feed.items?.length" class="existing-feed-preview">
+          <h3 class="existing-feed-preview-heading">Latest transmissions</h3>
+          <ol class="existing-feed-preview-list">
+            <li v-for="(item, itemIndex) in feed.items" :key="itemIndex">
+              <a v-if="item.link" :href="item.link" target="_blank" rel="noopener noreferrer">
+                {{ item.title }}
+              </a>
+              <span v-else>{{ item.title }}</span>
+              <time v-if="item.pubDate">{{ item.pubDate }}</time>
+            </li>
+          </ol>
+        </div>
       </li>
     </ul>
     <div class="actions">
+      <button class="btn btn-primary" @click="handleCreateAiFeed">
+        Create an AI feed anyway
+      </button>
       <button class="btn btn-secondary" @click="handleReset">
         Try Another URL
       </button>
