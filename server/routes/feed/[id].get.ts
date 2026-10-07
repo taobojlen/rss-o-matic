@@ -1,5 +1,7 @@
 import type { ParserConfig, SnapshotConfig, ExtractedFeed } from "../../utils/schema";
 import { detectChange } from "../../utils/change-detector";
+import { load } from "cheerio";
+import { extractFavicon } from "../../utils/parser";
 
 type FeedFormat = "atom" | "rss";
 
@@ -64,10 +66,11 @@ export default defineEventHandler(async (event) => {
 
   // Fetch, parse, generate
   try {
-    const html = await fetchPage(feed.url);
+    const { html, url } = await fetchPageDocument(feed.url);
+    const icon = extractFavicon(load(html), feed.url, url);
 
     if (feed.type === "snapshot") {
-      return await serveSnapshotFeed(event, feed, html, id, format);
+      return await serveSnapshotFeed(event, feed, html, id, format, icon);
     }
 
     const config: ParserConfig = JSON.parse(feed.parser_config);
@@ -80,6 +83,7 @@ export default defineEventHandler(async (event) => {
         extracted = result.extracted;
       }
     }
+    extracted.icon = icon;
 
     const host = getRequestHeader(event, "host") || "localhost";
     const proto = getRequestHeader(event, "x-forwarded-proto") || "https";
@@ -108,7 +112,8 @@ async function serveSnapshotFeed(
   feed: { url: string; title: string | null; parser_config: string },
   html: string,
   feedId: string,
-  format: FeedFormat
+  format: FeedFormat,
+  icon: string
 ) {
   const config: SnapshotConfig = JSON.parse(feed.parser_config);
 
@@ -164,6 +169,7 @@ async function serveSnapshotFeed(
     title: config.feedTitle || feed.title || "Page Changes",
     description: `Monitoring ${feed.url} for changes`,
     link: feed.url,
+    icon,
     items: items.map((item) => ({
       title: item.title,
       link: item.link,

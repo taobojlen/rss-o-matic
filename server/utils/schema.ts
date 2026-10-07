@@ -52,6 +52,7 @@ export interface ExtractedFeed {
   title: string;
   description: string;
   link: string;
+  icon?: string;
   items: FeedItem[];
 }
 

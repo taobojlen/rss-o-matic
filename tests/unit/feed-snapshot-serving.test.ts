@@ -1,4 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { generateRssXml, generateAtomXml } from "~/server/utils/feed-generator";
+import { parseRssFeed, parseAtomFeed } from "feedsmith";
+import { parseHtml } from "~/server/utils/parser";
+import { fetchPageDocument } from "~/server/utils/fetch-page";
+
+vi.mock("consola", () => ({
+  consola: { withTag: () => ({ info: vi.fn(), error: vi.fn() }) },
+}));
 
 const mockGetFeed = vi.fn();
 const mockLogFeedFetch = vi.fn().mockResolvedValue(undefined);
@@ -28,7 +36,7 @@ vi.stubGlobal("getFeed", mockGetFeed);
 vi.stubGlobal("logFeedFetch", mockLogFeedFetch);
 vi.stubGlobal("getCachedFeed", mockGetCachedFeed);
 vi.stubGlobal("setCachedFeed", mockSetCachedFeed);
-vi.stubGlobal("fetchPage", mockFetchPage);
+vi.stubGlobal("fetchPageDocument", async (url: string) => ({ html: await mockFetchPage(url), url }));
 vi.stubGlobal("getLatestSnapshot", mockGetLatestSnapshot);
 vi.stubGlobal("saveSnapshot", mockSaveSnapshot);
 vi.stubGlobal("saveFeedItem", mockSaveFeedItem);
@@ -64,6 +72,66 @@ describe("GET /feed/[id] (snapshot feeds)", () => {
     mockGetRouterParam.mockReturnValue("snap123.rss");
     mockGetRequestHeader.mockReturnValue("localhost");
     mockGetCachedFeed.mockResolvedValue(null);
+  });
+
+  it.each(["rss", "atom"])("includes the source favicon in snapshot %s output", async (format) => {
+    mockGetRouterParam.mockReturnValue(`snap123.${format}`);
+    mockGetFeed.mockResolvedValue(SNAPSHOT_FEED);
+    mockFetchPage.mockResolvedValue('<html><head><link rel="icon" href="/source.png"></head><body><main>Initial content</main></body></html>');
+    mockGetLatestSnapshot.mockResolvedValue(null);
+    mockGetFeedItems.mockResolvedValue([]);
+    const generator = format === "rss" ? mockGenerateRssXml : mockGenerateAtomXml;
+    generator.mockImplementationOnce(format === "rss" ? generateRssXml : generateAtomXml);
+    const handler = (await import("~/server/routes/feed/[id].get")).default;
+    const xml = await handler({ context: {} } as any);
+    const icon = format === "rss" ? parseRssFeed(xml).image?.url : parseAtomFeed(xml).icon;
+    expect(icon).toBe("https://example.com/source.png");
+  });
+
+  it.each([
+    ["selector", "rss", "https://example.com/blog/", '<link rel="icon" href="icons/site.png">', "https://example.com/blog/icons/site.png"],
+    ["snapshot", "atom", "https://example.com/blog/", '<link rel="icon" href="icons/site.png">', "https://example.com/blog/icons/site.png"],
+    ["selector", "atom", "https://other.example/news/", '<base href="assets/"><link rel="icon" href="site.png">', "https://other.example/news/assets/site.png"],
+    ["snapshot", "rss", "https://other.example/news/", '<base href="assets/"><link rel="icon" href="site.png">', "https://other.example/news/assets/site.png"],
+    ["selector", "rss", "https://other.example/news/", "", "https://example.com/favicon.ico"],
+    ["snapshot", "atom", "https://other.example/news/", "", "https://example.com/favicon.ico"],
+  ])("resolves redirected %s %s icons using %s", async (type, format, finalUrl, head, expected) => {
+    const config = {
+      feed: { title: "Blog" }, itemSelector: "article",
+      fields: { title: { selector: "a" }, link: { selector: "a", attr: "href" } },
+    };
+    mockGetRouterParam.mockReturnValue(`snap123.${format}`);
+    mockGetFeed.mockResolvedValue({
+      ...SNAPSHOT_FEED, url: "https://example.com/blog", type,
+      parser_config: type === "selector" ? JSON.stringify(config) : SNAPSHOT_FEED.parser_config,
+    });
+    mockGetLatestSnapshot.mockResolvedValue(null);
+    mockGetFeedItems.mockResolvedValue([]);
+    const response = new Response(`<html><head>${head}</head><body><main><article><a href="/post">Post</a></article></main></body></html>`);
+    Object.defineProperty(response, "url", { value: finalUrl });
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+    vi.stubGlobal("fetchPageDocument", fetchPageDocument);
+    vi.stubGlobal("parseHtml", parseHtml);
+    const generator = format === "rss" ? mockGenerateRssXml : mockGenerateAtomXml;
+    generator.mockImplementationOnce(format === "rss" ? generateRssXml : generateAtomXml);
+    try {
+      const handler = (await import("~/server/routes/feed/[id].get")).default;
+      const xml = await handler({ context: {} } as any);
+      if (format === "rss") {
+        const parsed = parseRssFeed(xml);
+        expect(parsed.image?.url).toBe(expected);
+        expect(parsed.link).toBe("https://example.com/blog");
+      } else {
+        const parsed = parseAtomFeed(xml);
+        expect(parsed.icon).toBe(expected);
+        expect(parsed.id).toBe("https://example.com/blog");
+      }
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+      vi.stubGlobal("fetchPageDocument", async (url: string) => ({ html: await mockFetchPage(url), url }));
+      vi.stubGlobal("parseHtml", mockParseHtml);
+    }
   });
 
   it("serves empty feed when snapshot feed has no items yet", async () => {

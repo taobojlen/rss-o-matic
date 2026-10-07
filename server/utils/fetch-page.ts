@@ -12,6 +12,14 @@ export async function fetchPage(
   url: string,
   accept = "text/html,application/xhtml+xml"
 ): Promise<string> {
+  return (await fetchPageDocument(url, accept)).html;
+}
+
+/** Fetch HTML and its final URL after redirects, with a 15-second timeout. */
+export async function fetchPageDocument(
+  url: string,
+  accept = "text/html,application/xhtml+xml"
+): Promise<{ html: string; url: string }> {
   const parsed = new URL(url);
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error("Only HTTP and HTTPS URLs are supported");
@@ -43,7 +51,7 @@ export async function fetchPage(
       { url, status: response.status, durationMs, bytes: html.length },
       "Page fetched"
     );
-    return html;
+    return { html, url: response.url };
   } finally {
     clearTimeout(timeout);
   }

@@ -25,6 +25,23 @@ const RSS_SELF_URL = "https://rss.example.com/feed/abc.rss";
 const ATOM_SELF_URL = "https://rss.example.com/feed/abc.atom";
 
 describe("generateRssXml", () => {
+  it("uses the source icon instead of the app icon in both formats", () => {
+    const feed = { ...FEED, icon: "https://source.example/icon.png?a=1&b=2" };
+    const baseUrl = "https://rss.example.com";
+    expect(parseRssFeed(generateRssXml(feed, RSS_SELF_URL, baseUrl)).image).toMatchObject({
+      url: "https://source.example/icon.png?a=1&b=2",
+      title: "Test Feed",
+      link: "https://example.com",
+    });
+    expect(parseAtomFeed(generateAtomXml(feed, ATOM_SELF_URL, baseUrl)).icon).toBe(feed.icon);
+  });
+
+  it("keeps the app icon for feeds without a source icon", () => {
+    const baseUrl = "https://rss.example.com";
+    expect(parseRssFeed(generateRssXml(FEED, RSS_SELF_URL, baseUrl)).image?.url).toBe(`${baseUrl}/favicon.svg`);
+    expect(parseAtomFeed(generateAtomXml(FEED, ATOM_SELF_URL, baseUrl)).icon).toBe(`${baseUrl}/favicon.svg`);
+  });
+
   it("produces valid XML preamble", () => {
     const xml = generateRssXml(FEED, RSS_SELF_URL);
     expect(xml).toContain('<?xml version="1.0" encoding="utf-8"?>');

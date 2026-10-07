@@ -63,7 +63,48 @@ export function parseHtml(
     items.push(item);
   });
 
-  return { title, description, link, items };
+  return { title, description, link, icon: extractFavicon($, sourceUrl), items };
+}
+
+/** Discover a web icon without fetching additional resources. */
+export function extractFavicon(
+  $: cheerio.CheerioAPI,
+  sourceUrl: string,
+  documentUrl = sourceUrl
+): string {
+  let baseUrl = documentUrl;
+  try {
+    baseUrl = new URL($("base[href]").first().attr("href") || documentUrl, documentUrl).href;
+  } catch {
+    // Invalid document bases do not prevent source-relative icon discovery.
+  }
+
+  let icon: string | undefined;
+  let pngIcon: string | undefined;
+  let touchIcon: string | undefined;
+  $("link[rel][href]").each((_, el) => {
+    const link = $(el);
+    const rel = link.attr("rel")!.toLowerCase().split(/\s+/);
+    const href = link.attr("href")?.trim();
+    if (!href) return;
+
+    try {
+      const url = new URL(href, baseUrl);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return;
+      if (rel.includes("icon")) {
+        icon ??= url.href;
+        if (link.attr("type")?.toLowerCase() === "image/png" || url.pathname.toLowerCase().endsWith(".png")) {
+          pngIcon ??= url.href;
+        }
+      } else if (rel.includes("apple-touch-icon")) {
+        touchIcon ??= url.href;
+      }
+    } catch {
+      // Ignore malformed icon URLs and continue looking for a usable icon.
+    }
+  });
+
+  return pngIcon ?? icon ?? touchIcon ?? new URL("/favicon.ico", sourceUrl).href;
 }
 
 function extractField(

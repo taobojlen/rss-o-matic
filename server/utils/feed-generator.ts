@@ -42,6 +42,7 @@ export function generateRssXml(
   selfUrl: string,
   baseUrl?: string
 ): string {
+  const icon = feed.icon ?? (baseUrl ? `${baseUrl}/favicon.svg` : undefined);
   return generateRssFeed(
     {
       title: feed.title,
@@ -49,9 +50,9 @@ export function generateRssXml(
       description: feedDescription(feed),
       generator: "RSS-O-Matic",
       lastBuildDate: new Date(),
-      image: baseUrl
+      image: icon
         ? {
-            url: `${baseUrl}/favicon.svg`,
+            url: icon,
             title: feed.title,
             link: feed.link,
           }
@@ -96,7 +97,7 @@ export function generateAtomXml(
       subtitle: { value: feedDescription(feed) },
       updated: new Date(),
       generator: { text: "RSS-O-Matic" },
-      icon: baseUrl ? `${baseUrl}/favicon.svg` : undefined,
+      icon: feed.icon ?? (baseUrl ? `${baseUrl}/favicon.svg` : undefined),
       links: [
         { href: feed.link, rel: "alternate" },
         { href: selfUrl, rel: "self" },

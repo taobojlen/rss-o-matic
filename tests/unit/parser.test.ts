@@ -33,6 +33,21 @@ const CONFIG: ParserConfig = {
 };
 
 describe("parseHtml", () => {
+  it.each([
+    ['<link rel="shortcut ICON" href="icons/site.ico">', "https://example.com/blog/icons/site.ico"],
+    ['<link rel="icon" href="//cdn.example.com/site.svg">', "https://cdn.example.com/site.svg"],
+    ['<base href="https://cdn.example.com/assets/"><link rel="icon" href="site.png">', "https://cdn.example.com/assets/site.png"],
+    ['<link rel="icon" href="/site.svg"><link rel="icon" type="image/png" href="/icon?id=2&amp;size=32">', "https://example.com/icon?id=2&size=32"],
+    ['<link rel="icon" href="/site.ico"><link rel="icon" href="/site.PNG?v=2">', "https://example.com/site.PNG?v=2"],
+    ['<link rel="apple-touch-icon" href="/touch.png">', "https://example.com/touch.png"],
+    ['<link rel="icon" href="javascript:alert(1)"><link rel="icon" href="https://["><link rel="icon" href=" ">', "https://example.com/favicon.ico"],
+    ['<link rel="not-icon" href="/wrong.png">', "https://example.com/favicon.ico"],
+    ['', "https://example.com/favicon.ico"],
+  ])("extracts a source favicon from %s", (head, expected) => {
+    const feed = parseHtml(`<html><head>${head}</head></html>`, CONFIG, "https://example.com/blog/page");
+    expect(feed.icon).toBe(expected);
+  });
+
   it("extracts feed title from selector", () => {
     const feed = parseHtml(SAMPLE_HTML, CONFIG, "https://example.com");
     expect(feed.title).toBe("My Blog");
